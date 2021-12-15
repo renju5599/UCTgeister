@@ -1,0 +1,35 @@
+///////////////////
+//
+// 動くかどうかは知りません!!!
+// 
+// Main.cpp	->	「きっと使い方はこうだろう」というやつ
+// UCT.cpp	->	UCT探索関連の某を入れている
+// UCT.h		->	UCT.cppで使う関数の宣言や、UCTでしか使わない型の定義
+// types.h	->	汎用的な型の定義や、汎用的な関数の定義
+//
+///////////////////
+
+#include<iostream>
+
+#include"types.h"
+#include"UCT.h"
+
+int main()
+{
+	const Recieve StartStr = "MOV?14R24R34R44R15B25B35B45B41u31u21u11u40u30u20u10u";	//初期盤面
+	UCT Tree(StartStr);
+	Recieve recieve;
+	Send send;
+
+	//試合
+	while (true)
+	{
+		// recieve = hoge()		// サーバーからの文字列を受け取る
+		Tree.SetNode(recieve);	//受け取った文字列通りにセット
+		Tree.Search();	//探索
+		NodeNum move = Tree.Choice();	//探索結果に合わせてrootからノードを選択
+		send = Tree.MoveNode(move);	//選択したノードに遷移し、サーバーに送る文字列を受け取る
+		cout << send << endl;
+		// fuga(send)		//サーバーに文字列を送る
+	}
+}
