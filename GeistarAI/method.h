@@ -31,9 +31,9 @@ inline bool Goal(Point xy, bool player)
 }
 inline bool Goal(BitBoard bb, bool player)
 {
-	if (player == 0 && (bb & 0x4200000000000000))
+	if (player == 1 && (bb & 0x4200000000000000))
 		return true;
-	else if (player == 1 && (bb & 0x0000000000000042))
+	else if (player == 0 && (bb & 0x0000000000000042))
 		return true;
 	else
 		return false;
@@ -95,46 +95,9 @@ inline Point toPoint(BitBoard bb)
 	return res;
 }
 
-inline Recieve toRecieve(Pieces pieces, Board board)
-{
-	Recieve rec = "***?";
-	for (int i = 0; i < 8; i++)
-	{
-		if (Outside(pieces.pos[i]))
-		{
-			rec += '9';
-			rec += '9';
-			rec += (board.dead_myblue & toBit(pieces.pos[i]) ? 'b' : 'r');
-		}
-		else
-		{
-			rec += x(pieces.pos[i]) + '0';
-			rec += y(pieces.pos[i]) + '0';
-			rec += (board.myblue & toBit(pieces.pos[i]) ? 'B' : 'R');
-		}
-	}
-	for (int i = 8; i < 16; i++)
-	{
-		if (Outside(pieces.pos[i]))
-		{
-			rec += '9';
-			rec += '9';
-			rec += (board.dead_enblue & toBit(pieces.pos[i]) ? 'b' : 'r');
-		}
-		else
-		{
-			rec += x(pieces.pos[i]) + '0';
-			rec += y(pieces.pos[i]) + '0';
-			rec += 'u';
-		}
-	}
-	return rec;
-}
-
 inline Pieces toPieces(Recieve rec)
 {
 	Pieces pieces = {};
-	int N = rec.size();
 	int i = 4;
 	for (int j = 0; j < 16; i += 3, j++)
 	{
@@ -152,23 +115,26 @@ inline Pieces toPieces(Recieve rec)
 inline Board toBoard(Recieve rec)
 {
 	Board res;
+	res.myblue = res.myred = res.enemy = 0; 
+	res.dead_myblue = res.dead_myred = 1;
+	res.dead_enblue = res.dead_enred = 1;
 	int N = rec.size();
-	for (int i = 4; i < N - 2; i += 3)
+	for (int i = 4, j = 0; j < 16; i += 3, j++)
 	{
 		int x = rec[i] - '0';
 		int y = rec[i + 1] - '0';
 		char c = rec[i + 2];
-		if (i < 3 * 8 + 4)	//自分の
+		if (j < 8)	//自分の
 		{
 			if (x == 9 && y == 9)
 			{
 				if (c == 'b')
 				{
-					res.dead_myblue++;
+					res.dead_myblue <<= 1;
 				}
 				else if (c == 'r')
 				{
-					res.dead_myred++;
+					res.dead_myred <<= 1;
 				}
 				else
 					assert(false);
@@ -196,11 +162,11 @@ inline Board toBoard(Recieve rec)
 			{
 				if (c == 'b')
 				{
-					res.dead_enblue++;
+					res.dead_enblue <<= 1;
 				}
 				else if (c == 'r')
 				{
-					res.dead_enred++;
+					res.dead_enred <<= 1;
 				}
 				else
 				{
@@ -271,7 +237,7 @@ inline bool onPiece(BitBoard bb1, BitBoard bb2)
 
 inline BitBoard change(BitBoard bb, BitBoard ppos, BitBoard npos)
 {
-	return (bb & ~ppos | npos);
+	return (bb ^ ppos ^ npos);
 }
 
 inline Send toSend(MoveCommand move, Pieces pieces)
@@ -295,15 +261,18 @@ inline Send toSend(MoveCommand move, Pieces pieces)
 }
 
 //これ頭よいので使おう
+//ONになっているビットの一番下を取り出す（そこだけONのビット列にする）
 inline BitBoard getBottomBB(BitBoard bb)
 {
 	return (bb & (-bb));
 }
+//ONになっているビットの一番下のビットをoffする
 inline BitBoard offBottomBB(BitBoard bb)
 {
 	return (bb & (bb - 1));
 }
 //
+
 inline BitBoard getNextPosBB(BitBoard bb)
 {
 	//00000000 00001000 00000000
@@ -312,4 +281,4 @@ inline BitBoard getNextPosBB(BitBoard bb)
 	return ((bb << 8) | (bb << 1) | (bb >> 1) | (bb >> 8));
 }
 
-void PossibleMoves(vector<MoveCommand>& nextmoves, bool nowPlayer, Board board);
+void PossibleNextBoard(vector<Board>& nextpositions, bool nowPlayer, Board board);

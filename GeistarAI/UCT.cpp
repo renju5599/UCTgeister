@@ -33,53 +33,15 @@
 #include "method.h"
 #include "UCT.h"
 
+#define WIN_VALUE 1
+#define LOSE_VALUE 0
+#define DRAW_VALUE 0
 
 using namespace std;
 
 
-void PossibleMoves(vector<MoveCommand>& nextmoves, bool nowPlayer, Board board)
-{
-	BitBoard nowmyblue = board.myblue;
-	BitBoard nowmyred = board.myred;
-	BitBoard nowmy = nowmyblue | nowmyred;
-	BitBoard nowen = board.enemy;
-	for (Point i = 9; i < 55; i++)	//周囲1マスは探索不要なため雑にカット
-	{
-
-		for (uint8_t dir = 0; dir < 4; dir++)
-		{
-
-			MoveCommand move = { i, dir };
-			if (nowPlayer == 0 && onPiece(nowmy, i))
-			{
-				Point pos = nextpos(move);
-				if (Outside(pos) && !Goal(pos, nowPlayer))
-					continue;
-				if (Goal(pos, nowPlayer) && onPiece(nowmyred, i))
-					continue;
-				if (onPiece(nowmy, pos))	//自身の駒が重なる
-					continue;
-
-				nextmoves.push_back(move);
-			}
-			if (nowPlayer == 1 && onPiece(nowen, i))
-			{
-				for (uint8_t dir = 0; dir < 4; dir++)
-				{
-					Point pos = nextpos(move);
-					if (Outside(pos) && !Goal(pos, nowPlayer))
-						continue;
-					if (onPiece(nowen, pos))	//自身の駒が重なる
-						continue;
-
-					nextmoves.push_back(move);
-				}
-			}
-		}
-	}
-	return;
-}
-
+// すべての合法手後の盤面をvectorに入れる
+// 敵駒を取った時の色は赤のときも青のときも入れる（確率とかは考慮していない）
 void PossibleNextBoard(vector<Board>& nextpositions, bool nowPlayer, Board board)
 {
 	BitBoard nowmyblue = board.myblue;
@@ -90,36 +52,101 @@ void PossibleNextBoard(vector<Board>& nextpositions, bool nowPlayer, Board board
 	//getBottomBB()とoffBottomBB()を使って高速に調べるようにしたい
 	if (nowPlayer == 0)
 	{
+		// どの位置の駒を動かすかのfor
 		for (BitBoard piecebb = nowmy; piecebb != 0; piecebb = offBottomBB(piecebb))
 		{
 			BitBoard ppos = getBottomBB(piecebb);
+			// 移動4方向を見るfor
 			for (BitBoard nextbb = getNextPosBB(ppos); nextbb != 0; nextbb = offBottomBB(nextbb))
 			{
 				BitBoard npos = getBottomBB(nextbb);
-				if (Outside(npos) && !Goal(npos, nowPlayer))
+				//合法かを見る
+				if (Outside(npos) && !Goal(npos, nowPlayer))	//盤面外
 					continue;
-				if (Goal(npos, nowPlayer) && onPiece(nowmyred, npos))
+				if (Goal(npos, nowPlayer) && onPiece(nowmyred, ppos))	//赤駒が脱出しようとした
 					continue;
 				if (onPiece(nowmy, npos))	//自身の駒が重なる
 					continue;
 
-				if (onPiece(nowmyblue, ppos))
+				if (Goal(npos, nowPlayer))	//脱出した
 				{
-					board.myblue = change(nowmyblue, ppos, npos);
-					nextpositions.push_back(board);
-					board.myblue = nowmyblue;
+					board.escape = true;
 				}
-				else
+				else	//脱出してない
+				{
+					board.escape = false;
+				}
+				if (onPiece(nowmyblue, ppos))	//青を動かした
+				{
+					board.myblue = change(nowmyblue, ppos, npos);	//駒の移動
+					if (onPiece(nowen, npos))	//敵駒を取った
+					{
+						board.enemy ^= npos;	//敵駒を取った後の状態に
+						if (board.enemy == 0)
+						{
+							cout << (int)board.dead_enblue << " " << (int)board.dead_enred << endl;
+						}
+						assert(board.enemy != 0);
+						board.kill = true;
+						//青駒を取った
+						board.dead_enblue <<= 1;
+						nextpositions.push_back(board);
+						board.dead_enblue >>= 1;
+						//赤駒を取った
+						board.dead_enred <<= 1;
+						nextpositions.push_back(board);
+						board.dead_enred >>= 1;
+						//元に戻す
+						board.enemy ^= npos;
+					}
+					else	//敵駒を取らなかった
+					{
+						board.kill = false;
+						nextpositions.push_back(board);
+					}
+					board.myblue = nowmyblue;	//動かす前に戻す
+				}
+				else	//赤を動かした
 				{
 					board.myred = change(nowmyred, ppos, npos);
-					nextpositions.push_back(board);
+					if (onPiece(nowen, npos))
+					{
+						board.enemy ^= npos;
+						if (board.enemy == 0)
+						{
+							cout << (int)board.dead_enblue << " " << (int)board.dead_enred << endl;
+						}
+						assert(board.enemy != 0);
+						board.kill = true;
+
+						board.dead_enblue <<= 1;
+						nextpositions.push_back(board);
+						board.dead_enblue >>= 1;
+
+						board.dead_enred <<= 1;
+						nextpositions.push_back(board);
+						board.dead_enred >>= 1;
+
+						board.enemy ^= npos;
+					}
+					else
+					{
+						board.kill = false;
+						nextpositions.push_back(board);
+					}
 					board.myred = nowmyred;
-				}
-			}
-		}
-	}
+
+				} // 動かした色を見るif-else
+			} // for nextbb
+		} // for piecebb
+	} // if nowPlayer == 0
 	else
 	{
+		if (nowen == 0)
+		{
+			cout << board.dead_enblue << " " << board.dead_enred << endl;
+		}
+		assert(nowen != 0);
 		for (BitBoard piecebb = nowen; piecebb != 0; piecebb = offBottomBB(piecebb))
 		{
 			BitBoard ppos = getBottomBB(piecebb);
@@ -131,12 +158,49 @@ void PossibleNextBoard(vector<Board>& nextpositions, bool nowPlayer, Board board
 				if (onPiece(nowen, npos))	//自身の駒が重なる
 					continue;
 
+				if (Goal(npos, nowPlayer))
+				{
+					board.escape = true;
+				}
+				else
+				{
+					board.escape = false;
+				}
+
 				board.enemy = change(nowen, ppos, npos);
-				nextpositions.push_back(board);
+				if (onPiece(nowmyblue, npos))	//青駒を取られた
+				{
+					board.myblue ^= npos;
+					board.kill = true;
+
+					board.dead_myblue <<= 1;
+					nextpositions.push_back(board);
+					board.dead_myblue >>= 1;
+
+					board.myblue ^= npos;
+				}
+				else if(onPiece(nowmyred, npos))	//赤駒を取られた
+				{
+					board.myred ^= npos;
+					board.kill = true;
+
+					board.dead_myred <<= 1;
+					nextpositions.push_back(board);
+					board.dead_myred >>= 1;
+
+					board.myred ^= npos;
+				}
+				else
+				{
+					board.kill = false;
+					nextpositions.push_back(board);
+				}
 				board.enemy = nowen;
+
 			}
 		}
-	}
+
+	} //nowPlayer == 1
 
 	return;
 }
@@ -150,6 +214,7 @@ UCT::UCT(Recieve str)
 	Nodes[0].board = toBoard(str);
 	Nodes[0].value = { 0,0, MAX_VALUE };
 	Nodes[0].nextnodes.resize(0);
+	Nodes[0].finish = 0;
 	nodenum = 1;
 	total_play = 0;
 	playnodenum = 0;
@@ -188,6 +253,7 @@ void UCT::SetNode(Recieve str)
 		Nodes[0].board = toBoard(str);
 		Nodes[0].value = { 0,0, MAX_VALUE };
 		Nodes[0].nextnodes.resize(0);
+		Nodes[0].finish = 0;
 		nodenum = 1;
 		total_play = 0;
 		playnodenum = 0;
@@ -195,6 +261,7 @@ void UCT::SetNode(Recieve str)
 	}
 	else
 	{
+		pieces = toPieces(str);
 		Board nowboard = toBoard(str);
 		if (nowboard == Nodes[playnodenum].board)
 			return;
@@ -215,6 +282,7 @@ void UCT::SetNode(Recieve str)
 				break;
 			}
 		}
+		assert(Nodes[playnodenum].board == nowboard);
 	}
 }
 
@@ -234,71 +302,39 @@ void UCT::UpdateBoardValue(NodeValue& v)
 int UCT::playout(bool nowPlayer, int playoutnum, Board nowboard)
 {
 
+	if (playoutnum > MAXPLAY)
+		return DRAW_VALUE;
+	if (nowboard.escape)
+		return (nowPlayer == 0 ? LOSE_VALUE : WIN_VALUE);
+	if (nowboard.dead_myblue == 16 || nowboard.dead_enred == 16)
+		return LOSE_VALUE;
+	if (nowboard.dead_myred == 16 || nowboard.dead_enblue == 16)
+		return WIN_VALUE;
+
 	while (true)
 	{
-		if (playoutnum > MAXPLAY)
-		{
-			return 1;
-		}
-		if (nowboard.escape)
-		{
-			return (nowPlayer == 0 ? 0 : 3);	//さっきのターンの話なので価値が逆
-		}
-		if (nowboard.dead_myblue == 4 || nowboard.dead_enred == 4)
-		{
-			return 0;
-		}
-		if (nowboard.dead_myred == 4 || nowboard.dead_enblue == 4)
-		{
-			return 3;
-		}
-
 		vector<Board> nextboards;
 		PossibleNextBoard(nextboards, nowPlayer, nowboard);
 		int nextmoves_size = nextboards.size();
+		if (nextmoves_size <= 0)
+		{
+			cout << "size:" << nextmoves_size << endl;
+			cout << "nowplayer:" << nowPlayer << endl;
+			cout << "playoutnum:" << playoutnum << endl;
+		}
 		assert(nextmoves_size > 0);
 		int r = rand() % nextmoves_size;
-		Board nextboard = nextboards[r];
-		if (nowPlayer == 0)
-		{
-			if (onPiece(nextboard.enemy, (nextboard.myblue | nextboard.myred)))
-			{
-				nextboard.enemy &= ~(nextboard.myblue | nextboard.myred);
-				nextboard.kill = true;
+		nowboard = nextboards[r];
 
-				int r2 = rand() % 2;
-				if (r2 == 0)
-					nextboard.dead_enblue++;
-				else
-					nextboard.dead_enred++;
-			}
-			if (Goal(nextboard.myblue, nowPlayer))
-			{
-				nextboard.escape = true;
-			}
-		}
-		else
-		{
-			if (onPiece(nextboard.myblue, nextboard.enemy))
-			{
-				nextboard.myblue &= ~nextboard.enemy;
-				nextboard.kill = true;
-				nextboard.dead_myblue++;
-			}
-			if (onPiece(nextboard.myred, nextboard.enemy))
-			{
-				nextboard.myred &= ~nextboard.enemy;
-				nextboard.kill = true;
-				nextboard.dead_myred++;
-			}
+		if (playoutnum > MAXPLAY)
+			return DRAW_VALUE;
+		if (nowboard.escape)
+			return (nowPlayer == 0 ? WIN_VALUE : LOSE_VALUE);
+		if (nowboard.dead_myblue == 16 || nowboard.dead_enred == 16)
+			return LOSE_VALUE;
+		if (nowboard.dead_myred == 16 || nowboard.dead_enblue == 16)
+			return WIN_VALUE;
 
-			if (Goal(nextboard.enemy, nowPlayer))
-			{
-				nextboard.escape = true;
-			}
-		}
-
-		nowboard = nextboard;
 		nowPlayer = !nowPlayer;
 		playoutnum++;
 	} // while(true)
@@ -311,10 +347,13 @@ void UCT::Search()
 	NodeNum search_node = playnodenum;
 	vector<NodeNum> usenode(1, playnodenum);
 	bool nowPlayer = 0; // 0:自分  1:相手
+	int playoutnum = playnum;
 
 	clock_t start_time = clock();
-	while (clock() - start_time < 3.0 * CLOCKS_PER_SEC)	// UCTのループ
+	while (clock() - start_time < 1.0 * CLOCKS_PER_SEC)	// UCTのループ
 	{
+
+		playoutnum++;
 
 		// 打てる手の候補を抽出する
 		vector<Board> nextboards;
@@ -324,74 +363,40 @@ void UCT::Search()
 
 		if (Nodes[search_node].nextnodes.empty())	//葉ノード
 		{
-			if (Nodes[search_node].value.play >= 3)	//展開
+
+			if (!Nodes[search_node].finish && Nodes[search_node].value.play >= 3)	//展開
 			{
 				//Nodesの拡張
 				for (int i = 0; i < nextboards_size; i++)
 				{
-					Board nextboard = nextboards[i];
-					if (nowPlayer == 0)
-					{
-						if (onPiece(nextboard.enemy, (nextboard.myblue | nextboard.myred)))
-						{
-							nextboard.enemy &= ~(nextboard.myblue | nextboard.myred);
-							nextboard.kill = true;
-
-							int r2 = rand() % 2;
-							if (r2 == 0)
-								nextboard.dead_enblue++;
-							else
-								nextboard.dead_enred++;
-						}
-						if (Goal(nextboard.myblue, nowPlayer))
-						{
-							nextboard.escape = true;
-						}
-					}
-					else
-					{
-						if (onPiece(nextboard.myblue, nextboard.enemy))
-						{
-							nextboard.myblue &= ~nextboard.enemy;
-							nextboard.kill = true;
-							nextboard.dead_myblue++;
-						}
-						if (onPiece(nextboard.myred, nextboard.enemy))
-						{
-							nextboard.myred &= ~nextboard.enemy;
-							nextboard.kill = true;
-							nextboard.dead_myred++;
-						}
-
-						if (Goal(nextboard.enemy, nowPlayer))
-						{
-							nextboard.escape = true;
-						}
-					}
 					Node nextnode;
-					nextnode.board = nextboard;
+					nextnode.board = nextboards[i];
 					nextnode.nextnodes.resize(0);
+					nextnode.finish = (
+						nextnode.board.dead_enblue == 16 ||
+						nextnode.board.dead_enred == 16 ||
+						nextnode.board.dead_myblue == 16 ||
+						nextnode.board.dead_myred == 16 ||
+						nextnode.board.escape
+						);
 
 					Nodes.push_back(nextnode);
 					Nodes[search_node].nextnodes.push_back(nodenum);
-					assert(nodenum == Nodes[search_node].nextnodes.back());
 					assert(Nodes[nodenum] == nextnode);
 					nodenum++;
 				}	//for nextmoves_size
 
 
 				assert(!Nodes[search_node].nextnodes.empty());
-				NodeNum r = rand() % Nodes[search_node].nextnodes.size();
-				search_node = Nodes[search_node].nextnodes[r];
+				search_node = Nodes[search_node].nextnodes[0];
 				nowPlayer = !nowPlayer;
 				usenode.push_back(search_node);
-
 			}	// if 展開
 
 			else	//プレイアウトとバックプロパゲーション
 			{
 				//playout();
-				int reward = playout(nowPlayer, playnum, Nodes[search_node].board);	//勝ち:3  分け:1  負け:0　(自分が)
+				int reward = playout(nowPlayer, playoutnum, Nodes[search_node].board);	//勝ち:3  分け:1  負け:0　(自分が)
 
 				//backpropagation();
 				total_play++;
@@ -405,7 +410,7 @@ void UCT::Search()
 				usenode.resize(1, playnodenum);
 				search_node = playnodenum;
 				nowPlayer = 0;
-
+				playoutnum = playnum;
 			}	// else
 		} // if 葉ノード
 
@@ -442,7 +447,9 @@ MoveCommand UCT::toMoveCommand(NodeNum from, NodeNum to)
 	BitBoard ppos = from_bb & ~to_bb;
 	BitBoard npos = ~from_bb & to_bb;
 	assert(ppos != 0);
+	assert(__popcnt64(ppos) == 1);
 	assert(npos != 0);
+	assert(__popcnt64(npos) == 1);
 	Point ppoint = toPoint(ppos);
 	Point npoint = toPoint(npos);
 	move.xy = ppoint;
@@ -459,13 +466,14 @@ NodeNum UCT::Choice()
 	NodeValue maxvalue = Nodes[choice_nodenum].value;
 	for (NodeNum nextnode : Nodes[playnodenum].nextnodes)
 	{
-		// 自分の手番⇒大きいのを選ぶ  相手の手番⇒小さいのを選ぶ
+		// 自分の手番⇒大きいのを選ぶ
 		if (chmax(maxvalue, Nodes[nextnode].value))
 		{
 			choice_nodenum = nextnode;
 		}
 	}
 	assert(playnodenum != choice_nodenum);
+	cout << Nodes[choice_nodenum].value.win << " " << Nodes[choice_nodenum].value.play << endl;
 	return choice_nodenum;
 }
 
@@ -482,6 +490,7 @@ Send UCT::MoveNode(NodeNum move_nodenum)
 
 void UCT::PrintStatus()
 {
+	printf("Turn:%d\n", playnum);
 	printf("Playout Times : %d\n", total_play);
 	printf("Node Num : %d\n", nodenum);
 }

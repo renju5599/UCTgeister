@@ -17,6 +17,7 @@ typedef uint8_t PieceNum;
 typedef uint8_t Direct;
 typedef std::string Recieve;
 typedef std::string Send;
+typedef uint8_t Dead;
 
 struct Status	//•ûôŒù”z–@—p
 {
@@ -27,16 +28,16 @@ struct Board
 {
 	BitBoard myblue, myred;
 	BitBoard enemy;
-	PieceNum dead_myblue, dead_myred;
-	PieceNum dead_enblue, dead_enred;
+	Dead dead_myblue, dead_myred;	//one-hot
+	Dead dead_enblue, dead_enred;	//one-hot
 	bool kill;
 	bool escape;
 
 	Board()
 	{
 		myblue = myred = enemy = 0;
-		dead_myblue = dead_myred = 0;
-		dead_enblue = dead_enred = 0;
+		dead_myblue = dead_myred = 1;
+		dead_enblue = dead_enred = 1;
 		kill = escape = 0;
 	}
 
@@ -48,10 +49,8 @@ struct Board
 			enemy != right.enemy ? false :
 			dead_myblue != right.dead_myblue ? false :
 			dead_myred != right.dead_myred ? false :
-			dead_enblue != right.dead_enblue ? false :
-			dead_enred != right.dead_enred ? false :
-			kill != right.kill ? false :
-			escape != right.escape ? false :
+			//dead_enblue != right.dead_enblue ? false :
+			//dead_enred != right.dead_enred ? false :
 			true
 			);
 	}

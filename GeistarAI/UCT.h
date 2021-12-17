@@ -4,7 +4,7 @@
 
 #include "types.h"
 
-#define MAXPLAY 200	//Å‘åè” (‚±‚±‚Åˆø‚«•ª‚¯)
+#define MAXPLAY 300	//Å‘åè” (‚±‚±‚Åˆø‚«•ª‚¯)
 #define MAX_VALUE (1LL << 30)
 #define FACTOR pow(2, 0.5)
 
@@ -36,6 +36,7 @@ struct Node
 	Board board = {};
 	NodeValue value = {};
 	vector<NodeNum> nextnodes;	//qƒm[ƒh‚ğ•Û‘¶ (Nodes‚Ì“Y‚¦š‚ğŠÇ—‚·‚é‚¾‚¯)
+	bool finish = 0;
 
 	bool operator==(const Node& right) const
 	{
