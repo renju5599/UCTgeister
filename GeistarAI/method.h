@@ -8,17 +8,10 @@
 inline Point x(Point xy) { return xy & 7; }		// 1～6が盤面内
 inline Point y(Point xy) { return xy >> 3; }	// 1～6が盤面内
 
-inline bool Outside(Point xy)
+//内側だけのマスク処理
+inline BitBoard Inside(BitBoard bb)
 {
-	if (y(xy) == 0) return true;
-	if (y(xy) == 7) return true;
-	if (x(xy) == 0) return true;
-	if (x(xy) == 7) return true;
-	return false;
-}
-inline bool Outside(BitBoard bb)
-{
-	return (bool)(bb & 0xFF818181818181FF);
+	return (bb & 0x007E7E7E7E7E7E00);
 }
 inline bool Goal(Point xy, bool player)
 {
@@ -115,7 +108,7 @@ inline Pieces toPieces(Recieve rec)
 inline Board toBoard(Recieve rec)
 {
 	Board res;
-	res.myblue = res.myred = res.enemy = 0; 
+	res.myblue = res.myred = res.enemy = res.enblue = res.enred = 0; 
 	res.dead_myblue = res.dead_myred = 1;
 	res.dead_enblue = res.dead_enred = 1;
 	int N = rec.size();
@@ -235,9 +228,9 @@ inline bool onPiece(BitBoard bb1, BitBoard bb2)
 	return (bb1 & bb2);
 }
 
-inline BitBoard change(BitBoard bb, BitBoard ppos, BitBoard npos)
+inline void change(BitBoard& bb, BitBoard ppos, BitBoard npos)
 {
-	return (bb ^ ppos ^ npos);
+	bb ^= (ppos ^ npos);
 }
 
 inline Send toSend(MoveCommand move, Pieces pieces)
@@ -267,9 +260,9 @@ inline BitBoard getBottomBB(BitBoard bb)
 	return (bb & (-bb));
 }
 //ONになっているビットの一番下のビットをoffする
-inline BitBoard offBottomBB(BitBoard bb)
+inline void offBottomBB(BitBoard& bb)
 {
-	return (bb & (bb - 1));
+	bb &= (bb - 1);
 }
 //
 

@@ -6,7 +6,10 @@
 
 #define MAXPLAY 300	//Å‘åè” (‚±‚±‚Åˆø‚«•ª‚¯)
 #define MAX_VALUE (1LL << 30)
-#define FACTOR pow(2, 0.5)
+#define FACTOR (pow(2, 0.5))
+#define WIN_VALUE 1
+#define LOSE_VALUE -1
+#define DRAW_VALUE 0
 
 using namespace std;
 

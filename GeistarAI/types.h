@@ -9,8 +9,6 @@ using namespace std;
 template<class T>inline bool chmax(T& a, const T& b) { if (a < b) { a = b; return 1; } return 0; }
 template<class T>inline bool chmin(T& a, const T& b) { if (a > b) { a = b; return 1; } return 0; }
 
-#define MAXPLAY 200	//Å‘åè” (‚±‚±‚Åˆø‚«•ª‚¯)
-
 typedef uint64_t BitBoard;
 typedef uint8_t Point;
 typedef uint8_t PieceNum;
@@ -27,7 +25,7 @@ struct Status	//•ûôŒù”z–@—p
 struct Board
 {
 	BitBoard myblue, myred;
-	BitBoard enemy;
+	BitBoard enemy, enblue, enred;
 	Dead dead_myblue, dead_myred;	//one-hot
 	Dead dead_enblue, dead_enred;	//one-hot
 	bool kill;
@@ -35,7 +33,7 @@ struct Board
 
 	Board()
 	{
-		myblue = myred = enemy = 0;
+		myblue = myred = enemy = enblue = enred = 0;
 		dead_myblue = dead_myred = 1;
 		dead_enblue = dead_enred = 1;
 		kill = escape = 0;
