@@ -9,6 +9,7 @@
 #include<algorithm>
 #include<time.h>
 #include<cassert>
+#include<bitset>
 
 #include "types.h"
 #include "method.h"
@@ -282,7 +283,7 @@ int UCT::playout(bool nowPlayer, int playoutnum, Board nowboard)
 	while (bluenum--)
 	{
 		int r = rand() % undefinenum;
-		BitBoard bb = nowboard.enemy ^ nowboard.enblue ^ nowboard.enred;
+		BitBoard bb = nowboard.enemy & ~nowboard.enblue & ~nowboard.enred;
 		while (r--)
 		{
 			offBottomBB(bb);
@@ -292,63 +293,72 @@ int UCT::playout(bool nowPlayer, int playoutnum, Board nowboard)
 		undefinenum--;
 	}
 	assert(undefinenum == rednum);
-	nowboard.enred = nowboard.enemy ^ nowboard.enblue;
-
-	//すでに勝負がついているか見る
-	if (playoutnum > MAXPLAY)
-		return DRAW_VALUE;
-	if (nowboard.escape)
-		return (nowPlayer == 0 ? LOSE_VALUE : WIN_VALUE);
-	if (nowboard.dead_myblue == 16 || nowboard.dead_enred == 16)
-		return LOSE_VALUE;
-	if (nowboard.dead_myred == 16 || nowboard.dead_enblue == 16)
-		return WIN_VALUE;
-
+	nowboard.enred = nowboard.enemy & ~nowboard.enblue;
 
 	while (true)
 	{
-		//ここが遅そう
-		vector<Board> nextboards;
-		PossibleNextBoard(nextboards, nowPlayer, nowboard);
-		int nextmoves_size = nextboards.size();
-		assert(nextmoves_size > 0);
-		int r = rand() % nextmoves_size;
-		nowboard = nextboards[r];	//ランダムに次の手を決める
-		
-		//変えてみる
-		//ゴール判定ができてない
-		//BitBoard ppos = (nowPlayer == 0 ? (nowboard.myblue | nowboard.myred) : nowboard.enemy);
-		//BitBoard npos = Inside(getNextPosBB(ppos) ^ ppos);	//移動先候補を抽出
-		//assert(ppos != 0);
-		//assert(npos != 0);
-		////移動先をランダムに選択
-		//int r = rand() % __popcnt64(npos);
-		//while (r--)
-		//	offBottomBB(npos);
-		//npos = getBottomBB(npos);
-		////選択された移動先に行ける駒の中でランダムに選択
-		//ppos &= getNextPosBB(npos);
-		//assert(ppos != 0);
-		//r = rand() % __popcnt64(ppos);
-		//while (r--)
-		//	offBottomBB(ppos);
-		//ppos = getBottomBB(ppos);
-		////決めた行動をboardに変換する
-		//toNextBoard(nowboard, ppos, npos, nowPlayer);
-		//
 
-		//勝負がついたか見る
+		//勝負がついているか見る
 		if (playoutnum > MAXPLAY)
 			return DRAW_VALUE;
 		if (nowboard.escape)
-			return (nowPlayer == 0 ? WIN_VALUE : LOSE_VALUE);
+			return (nowPlayer == 0 ? LOSE_VALUE : WIN_VALUE);
 		if (nowboard.dead_myblue == 16 || nowboard.dead_enred == 16)
 			return LOSE_VALUE;
 		if (nowboard.dead_myred == 16 || nowboard.dead_enblue == 16)
 			return WIN_VALUE;
 		assert(__popcnt64(nowboard.enemy) >= 2);
-		assert(nowboard.enemy == (nowboard.enblue ^ nowboard.enred));
+		assert(nowboard.enemy == (nowboard.enblue & ~nowboard.enred));
 
+		//ここが遅そう
+		//vector<Board> nextboards;
+		//PossibleNextBoard(nextboards, nowPlayer, nowboard);
+		//int nextmoves_size = nextboards.size();
+		//assert(nextmoves_size > 0);
+		//int r = rand() % nextmoves_size;
+		//nowboard = nextboards[r];	//ランダムに次の手を決める
+		
+		//変えてみる
+		BitBoard ppos = 0, npos = 0;
+		//ゴールできたらゴールする
+		if (nowPlayer == 0 && Goal(getNextPosBB(nowboard.myblue), 0))
+		{
+			ppos = getNextPosBB(MYGOAL) & nowboard.myblue;
+			assert(__popcnt64(ppos) == 1);
+			npos = getNextPosBB(nowboard.myblue) & MYGOAL;
+			assert(__popcnt64(npos) == 1);
+		}
+		else if (nowPlayer == 1 && Goal(getNextPosBB(nowboard.enblue), 1))
+		{
+			ppos = getNextPosBB(ENGOAL) & nowboard.enblue;
+			assert(__popcnt64(ppos) == 1);
+			npos = getNextPosBB(nowboard.enblue) & ENGOAL;
+			assert(__popcnt64(npos) == 1);
+		}
+		//通常の動き
+		else
+		{
+			ppos = (nowPlayer == 0 ? (nowboard.myblue | nowboard.myred) : nowboard.enemy);
+			npos = Inside(getNextPosBB(ppos) & ~ppos);	//移動先候補を抽出
+			assert(ppos != 0);
+			assert(npos != 0);
+			//移動先をランダムに選択
+			int r = rand() % __popcnt64(npos);
+			while (r--)
+				offBottomBB(npos);
+			npos = getBottomBB(npos);
+			//選択された移動先に行ける駒の中でランダムに選択
+			ppos &= getNextPosBB(npos);
+			assert(ppos != 0);
+			r = rand() % __popcnt64(ppos);
+			while (r--)
+				offBottomBB(ppos);
+			ppos = getBottomBB(ppos);
+		}
+		//決めた行動をboardに変換する
+		toNextBoard(nowboard, ppos, npos, nowPlayer);
+		//
+		
 		//ターンを進める
 		nowPlayer = !nowPlayer;
 		playoutnum++;
@@ -379,7 +389,7 @@ void UCT::Search()
 		if (Nodes[search_node].nextnodes.empty())	//葉ノード
 		{
 
-			if (!Nodes[search_node].finish && Nodes[search_node].value.play >= 3)	//展開
+			if (!Nodes[search_node].finish && Nodes[search_node].value.play >= 1)	//展開
 			{
 				//Nodesの拡張
 				for (int i = 0; i < nextboards_size; i++)
@@ -497,7 +507,7 @@ NodeNum UCT::Choice()
 		}
 	}
 	assert(playnodenum != choice_nodenum);
-	cout << Nodes[choice_nodenum].value.win << " " << Nodes[choice_nodenum].value.play << endl;
+	cout << "Value:" << Nodes[choice_nodenum].value.win << " Play:" << Nodes[choice_nodenum].value.play << endl;
 	return choice_nodenum;
 }
 

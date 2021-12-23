@@ -5,6 +5,9 @@
 
 #include "types.h"
 
+#define MYGOAL 0x0000000000000042
+#define ENGOAL 0x4200000000000000
+
 inline Point x(Point xy) { return xy & 7; }		// 1Å`6Ç™î’ñ ì‡
 inline Point y(Point xy) { return xy >> 3; }	// 1Å`6Ç™î’ñ ì‡
 
@@ -24,9 +27,9 @@ inline bool Goal(Point xy, bool player)
 }
 inline bool Goal(BitBoard bb, bool player)
 {
-	if (player == 1 && (bb & 0x4200000000000000))
+	if (player == 1 && (bb & ENGOAL))
 		return true;
-	else if (player == 0 && (bb & 0x0000000000000042))
+	else if (player == 0 && (bb & MYGOAL))
 		return true;
 	else
 		return false;
