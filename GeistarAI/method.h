@@ -27,12 +27,13 @@ inline bool Goal(Point xy, bool player)
 }
 inline bool Goal(BitBoard bb, bool player)
 {
-	if (player == 1 && (bb & ENGOAL))
-		return true;
-	else if (player == 0 && (bb & MYGOAL))
-		return true;
-	else
-		return false;
+	return (player == 1 && (bb & ENGOAL)) || (player == 0 && (bb & MYGOAL));
+	//if (player == 1 && (bb & ENGOAL))
+	//	return true;
+	//else if (player == 0 && (bb & MYGOAL))
+	//	return true;
+	//else
+	//	return false;
 }
 
 inline BitBoard toBit(Point xy)
@@ -59,11 +60,12 @@ inline Point toPoint_0indexed(uint8_t x, uint8_t y)
 {
 	return ((y + 1) << 3) + x + 1;
 }
+//ŽÀŽ¿’ê‚ª2‚Ìlog
 inline Point toPoint(BitBoard bb)
 {
 	assert(bb != 0);
 	//“ñ•ª’Tõ‚Å‚‘¬‚É‚È‚è‚»‚¤
-	BitBoard flag[6] = {
+	const BitBoard flag[6] = {
 		0xffffffff00000000,
 		0xffff0000,
 		0xff00,
@@ -71,7 +73,7 @@ inline Point toPoint(BitBoard bb)
 		0xc,
 		0x2
 	};
-	Point p[6] = {
+	const Point p[6] = {
 		32,
 		16,
 		8,

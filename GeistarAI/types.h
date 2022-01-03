@@ -16,6 +16,7 @@ typedef uint8_t Direct;
 typedef std::string Recieve;
 typedef std::string Send;
 typedef uint8_t Dead;
+typedef uint64_t Hash;
 
 struct Status	//方策勾配法用
 {
@@ -39,17 +40,47 @@ struct Board
 		kill = escape = 0;
 	}
 
-	bool operator==(const Board& right) const
+	bool const operator==(const Board& right) const
 	{
 		return (
 			myblue != right.myblue ? false :
 			myred != right.myred ? false :
 			enemy != right.enemy ? false :
+			enblue != right.enblue ? false :
+			enred != right.enred ? false :
 			dead_myblue != right.dead_myblue ? false :
 			dead_myred != right.dead_myred ? false :
-			//dead_enblue != right.dead_enblue ? false :
-			//dead_enred != right.dead_enred ? false :
+			dead_enblue != right.dead_enblue ? false :
+			dead_enred != right.dead_enred ? false :
 			true
+			);
+	}
+	//大小はどうでもよいのでソートできるようにする
+	//mapで使うため
+	bool operator<(const Board& right) const
+	{
+		return (
+			myblue < right.myblue ? true :
+			myblue > right.myblue ? false :
+			myred < right.myred ? true :
+			myred > right.myred ? false :
+			enemy < right.enemy ? true :
+			enemy > right.enemy ? false :
+			enblue < right.enblue ? true :
+			enblue > right.enblue ? false :
+			enred < right.enred ? true :
+			enred > right.enred ? false :
+			dead_myblue < right.dead_myblue ? true :
+			dead_myblue > right.dead_myblue ? false :
+			dead_myred < right.dead_myred ? true :
+			dead_myred > right.dead_myred ? false :
+			dead_enblue < right.dead_enblue ? true :
+			dead_enblue > right.dead_enblue ? false :
+			dead_enred < right.dead_enred ? true :
+			dead_enred > right.dead_enred ? false :
+			//kill < right.kill ? true :
+			//escape < right.escape ? true :
+			false
 			);
 	}
 };

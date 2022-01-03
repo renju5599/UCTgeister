@@ -109,6 +109,7 @@ namespace Game_
                 break;                     // 終了してたら繰り返し抜ける
             Tree.SetNode(recieve);         //受け取った文字列通りにセット
             Tree.Search();                 //探索
+						//Tree.ParallelSearch();
 						printf("Finish Search\n");
 						Tree.PrintStatus();
             NodeNum move = Tree.Choice();  //探索結果に合わせてrootからノードを選択

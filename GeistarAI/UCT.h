@@ -1,6 +1,9 @@
 #pragma once
 
 #include <vector>
+#include <map>
+#include <thread>
+#include <mutex>
 
 #include "types.h"
 
@@ -38,7 +41,7 @@ struct Node
 {
 	Board board = {};
 	NodeValue value = {};
-	vector<NodeNum> nextnodes;	//子ノードを保存 (Nodesの添え字を管理するだけ)
+	vector<Hash> nextnodes;	//子ノードを保存 (Nodesのハッシュ値を管理するだけ)
 	bool finish = 0;
 
 	bool operator==(const Node& right) const
@@ -52,19 +55,24 @@ class UCT	//ゲーム終了まで1つの探索木で完結させるつもり
 private:
 	//探索木
 	vector<Node> Nodes;	//盤面を保存するノード達 
-	//vector<vector<NodeNum>> NextNodes;	//Nodesにまとめればよいのではと思ったので消す
-	//
+	map<Board, int> board_index;	//盤面に対するノードの添え字を保存する
+
+	vector<thread> threads;
+	mutex mtx;
+
 	NodeNum nodenum;	//木全体のノード数
 	int total_play;	//プレイアウト回数の総和
 	NodeNum playnodenum;	//ゲーム進行上の現在のノード
 	int playnum;	//ゲームのターン数
 	Pieces pieces;	//駒の番号と位置を関連付ける
-
-	//UCTで要らなくなったノードを（入れると）消す
-	void NodeErase(NodeNum root);
+	Board playboard;
 
 	//UCTの各ノードの価値(?)を計算・保存する
 	void UpdateBoardValue(NodeValue& v);
+	inline double compare(int win, int play)
+	{
+		return ((double)win / play) + FACTOR * pow(log(total_play) / play, 0.5);
+	}
 
 	//UCT内のプレイアウトをする関数
 	int playout(bool nowPlayer, int playoutnum, Board nowboard);
@@ -81,6 +89,7 @@ public:
 
 	//UCT探索をする
 	void Search();
+	void ParallelSearch();
 
 	//rootノードからどの手を選んで指すか。ノードの添え字を返す
 	NodeNum Choice();
