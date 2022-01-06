@@ -31,13 +31,14 @@ struct Board
 	Dead dead_enblue, dead_enred;	//one-hot
 	bool kill;
 	bool escape;
+	bool willplayer;
 
 	Board()
 	{
 		myblue = myred = enemy = enblue = enred = 0;
 		dead_myblue = dead_myred = 1;
 		dead_enblue = dead_enred = 1;
-		kill = escape = 0;
+		kill = escape = willplayer = 0;
 	}
 
 	bool const operator==(const Board& right) const
@@ -52,36 +53,58 @@ struct Board
 			dead_myred != right.dead_myred ? false :
 			dead_enblue != right.dead_enblue ? false :
 			dead_enred != right.dead_enred ? false :
+			willplayer != right.willplayer ? false :
 			true
 			);
 	}
-	//大小はどうでもよいのでソートできるようにする
-	//mapで使うため
-	bool operator<(const Board& right) const
+	////大小はどうでもよいのでソートできるようにする
+	////mapで使うため
+	// mapは使わなくなりました。代わりにunordered_mapを使う（速いので）
+	//bool operator<(const Board& right) const
+	//{
+	//	return (
+	//		myblue < right.myblue ? true :
+	//		myblue > right.myblue ? false :
+	//		myred < right.myred ? true :
+	//		myred > right.myred ? false :
+	//		enemy < right.enemy ? true :
+	//		enemy > right.enemy ? false :
+	//		enblue < right.enblue ? true :
+	//		enblue > right.enblue ? false :
+	//		enred < right.enred ? true :
+	//		enred > right.enred ? false :
+	//		dead_myblue < right.dead_myblue ? true :
+	//		dead_myblue > right.dead_myblue ? false :
+	//		dead_myred < right.dead_myred ? true :
+	//		dead_myred > right.dead_myred ? false :
+	//		dead_enblue < right.dead_enblue ? true :
+	//		dead_enblue > right.dead_enblue ? false :
+	//		dead_enred < right.dead_enred ? true :
+	//		dead_enred > right.dead_enred ? false :
+	//		willplayer < right.willplayer ? false :
+	//		willplayer > right.willplayer ? true :
+	//		//kill < right.kill ? true :
+	//		//escape < right.escape ? true :
+	//		false
+	//		);
+	//}
+};
+//unordered_mapのためのhash
+struct BoardHash
+{
+	inline size_t operator()(const Board& data) const
 	{
-		return (
-			myblue < right.myblue ? true :
-			myblue > right.myblue ? false :
-			myred < right.myred ? true :
-			myred > right.myred ? false :
-			enemy < right.enemy ? true :
-			enemy > right.enemy ? false :
-			enblue < right.enblue ? true :
-			enblue > right.enblue ? false :
-			enred < right.enred ? true :
-			enred > right.enred ? false :
-			dead_myblue < right.dead_myblue ? true :
-			dead_myblue > right.dead_myblue ? false :
-			dead_myred < right.dead_myred ? true :
-			dead_myred > right.dead_myred ? false :
-			dead_enblue < right.dead_enblue ? true :
-			dead_enblue > right.dead_enblue ? false :
-			dead_enred < right.dead_enred ? true :
-			dead_enred > right.dead_enred ? false :
-			//kill < right.kill ? true :
-			//escape < right.escape ? true :
-			false
-			);
+		return
+			hash<BitBoard>()(data.myblue) ^
+			hash<BitBoard>()(data.myred) ^
+			hash<BitBoard>()(data.enemy) ^
+			hash<BitBoard>()(data.enblue) ^
+			hash<BitBoard>()(data.enred) ^
+			hash<Dead>()(data.dead_myblue) ^
+			hash<Dead>()(data.dead_myred) ^
+			hash<Dead>()(data.dead_enblue) ^
+			hash<Dead>()(data.dead_enred) ^
+			hash<bool>()(data.willplayer);
 	}
 };
 
@@ -89,6 +112,11 @@ struct MoveCommand
 {
 	Point xy;
 	Direct dir;	//移動する方向 (↑…0, →…1, ↓…2, ←…3)
+	MoveCommand()
+	{
+		xy = 0;
+		dir = 0;
+	}
 };
 
 

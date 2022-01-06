@@ -116,6 +116,8 @@ void PossibleNextBoard(vector<Board>& nextpositions, bool nowPlayer, Board board
 				if (onPiece(nowmy, npos))	//自身の駒が重なる
 					continue;
 
+				board.willplayer = 1;
+
 				Board nextboard = board;
 				toNextBoard(nextboard, ppos, npos, nowPlayer);
 				nextpositions.push_back(nextboard);
@@ -138,6 +140,8 @@ void PossibleNextBoard(vector<Board>& nextpositions, bool nowPlayer, Board board
 				if (onPiece(board.enemy, npos))	//自身の駒が重なる
 					continue;
 
+				board.willplayer = 0;
+
 				Board nextboard = board;
 				toNextBoard(nextboard, ppos, npos, nowPlayer);
 				nextpositions.push_back(nextboard);
@@ -156,8 +160,9 @@ UCT::UCT(Recieve str)
 	// ルートノードをつくる
 	Nodes.resize(2);	//mapの関係で0番目は空にする
 	Nodes[1].board = toBoard(str);
-	Nodes[1].value = { 0,0, MAX_VALUE };
-	Nodes[1].nextnodes.resize(0);
+	//Nodes[1].value = { 0,0, MAX_VALUE };
+	Nodes[1].value = { 0,0 };
+	Nodes[1].nextnodes.clear();
 	Nodes[1].finish = 0;
 
 	nodenum = 2;
@@ -193,8 +198,9 @@ void UCT::SetNode(Recieve str)
 	// 探索木にノードが無ければ構築しなおす
 	Nodes.resize(2);
 	Nodes[1].board = toBoard(str);
-	Nodes[1].value = { 0,0, MAX_VALUE };
-	Nodes[1].nextnodes.resize(0);
+	//Nodes[1].value = { 0,0, MAX_VALUE };
+	Nodes[1].value = { 0,0 };
+	Nodes[1].nextnodes.clear();
 	Nodes[1].finish = 0;
 
 	nodenum = 2;
@@ -206,17 +212,17 @@ void UCT::SetNode(Recieve str)
 }
 
 //UCTの各ノードの価値(?)を計算・保存する
-void UCT::UpdateBoardValue(NodeValue& v)
-{
-	if (v.play == 0)
-	{
-		v.comp = MAX_VALUE;
-		return;
-	}
-	assert(total_play != 0);
-	//v.comp = ((double)v.win / v.play) + FACTOR * pow(log(total_play) / v.play, 0.5);
-	v.comp = compare(v.win, v.play);
-}
+//void UCT::UpdateBoardValue(NodeValue& v)
+//{
+//	if (v.play == 0)
+//	{
+//		v.comp = MAX_VALUE;
+//		return;
+//	}
+//	assert(total_play != 0);
+//	//v.comp = ((double)v.win / v.play) + FACTOR * pow(log(total_play) / v.play, 0.5);
+//	v.comp = compare(v.win, v.play);
+//}
 
 int livenum(Dead d)
 {
@@ -308,15 +314,18 @@ int UCT::playout(bool nowPlayer, int turnnum, Board nowboard)
 		if (nowPlayer == 0 && Goal(getNextPosBB(nowboard.myblue), 0))
 		{
 			ppos = getNextPosBB(MYGOAL) & nowboard.myblue;
-			assert(__popcnt64(ppos) == 1);
-			npos = getNextPosBB(nowboard.myblue) & MYGOAL;
+			//assert(__popcnt64(ppos) == 1);	//探索木の構造上、両方の手前にあることがある
+			ppos = getBottomBB(ppos);
+			npos = getNextPosBB(ppos) & MYGOAL;
 			assert(__popcnt64(npos) == 1);
+
 		}
 		else if (nowPlayer == 1 && Goal(getNextPosBB(nowboard.enblue), 1))
 		{
 			ppos = getNextPosBB(ENGOAL) & nowboard.enblue;
-			assert(__popcnt64(ppos) == 1);
-			npos = getNextPosBB(nowboard.enblue) & ENGOAL;
+			//assert(__popcnt64(ppos) == 1);
+			ppos = getBottomBB(ppos);
+			npos = getNextPosBB(ppos) & ENGOAL;
 			assert(__popcnt64(npos) == 1);
 		}
 		//通常の動き
@@ -368,20 +377,23 @@ void UCT::Search()
 	//事前にSetNode(str)をしておく
 	NodeNum search_node = playnodenum;
 	vector<NodeNum> usenode(1, playnodenum);
-	map<NodeNum, bool> used;
+	unordered_map<NodeNum, bool> used;
 	bool nowPlayer = 0; // 0:自分  1:相手
 	int turnnum = playnum;
+
+	assert(Nodes[playnodenum].board.willplayer == nowPlayer);
 
 	clock_t start_time = clock();
 	while (clock() - start_time < 1.0 * CLOCKS_PER_SEC)	// UCTのループ
 	{
 		while (!Nodes[search_node].nextnodes.empty())	//木の端まで見る
 		{
-			turnnum++;
 			NodeNum choice_nodenum = -1;
-			double maxvalue = 0, minvalue = MAX_VALUE;
+			double maxvalue = -MAX_VALUE, minvalue = MAX_VALUE;
+			assert(Nodes[search_node].board.willplayer == nowPlayer);
 			for (NodeNum nextnode : Nodes[search_node].nextnodes)
 			{
+				assert(Nodes[nextnode].board.willplayer != nowPlayer);
 				if (used[nextnode])	//2度同じ盤面は見ない
 					continue;
 				// 自分の手番⇒大きいのを選ぶ  相手の手番⇒小さいのを選ぶ
@@ -404,6 +416,7 @@ void UCT::Search()
 				break;
 			}
 
+			turnnum++;
 			used[choice_nodenum] = 1;
 			search_node = choice_nodenum;
 			nowPlayer = !nowPlayer;
@@ -419,18 +432,22 @@ void UCT::Search()
 			assert(nextboards_size > 0);
 
 			//Nodesの拡張
-			for (int i = 0; i < nextboards_size; i++)
+			for (const Board& nextboard : nextboards)
 			{
-				if (board_index[nextboards[i]] != 0)
+				assert(nowPlayer == Nodes[search_node].board.willplayer);
+				assert(nextboard.willplayer != nowPlayer);
+				assert(Nodes[search_node].board.willplayer != nextboard.willplayer);
+				if (board_index[nextboard] != 0)	//ハッシュが設定済み（探索済みのノード）は繋げるだけ
 				{
-					Nodes[search_node].nextnodes.push_back(board_index[nextboards[i]]);
+					assert(Nodes[search_node].board.willplayer != Nodes[board_index[nextboard]].board.willplayer);
+					Nodes[search_node].nextnodes.push_back(board_index[nextboard]);
 					continue;
 				}
-				board_index[nextboards[i]] = nodenum;
+				board_index[nextboard] = nodenum;	//新たにハッシュを設定する
 
 				Node nextnode;
-				nextnode.board = nextboards[i];
-				nextnode.nextnodes.resize(0);
+				nextnode.board = nextboard;
+				nextnode.nextnodes.clear();
 
 				//勝負がついているか
 				nextnode.finish = (
@@ -443,6 +460,7 @@ void UCT::Search()
 					);
 
 				Nodes.push_back(nextnode);
+				assert(Nodes[search_node].board.willplayer != Nodes[nodenum].board.willplayer);
 				Nodes[search_node].nextnodes.push_back(nodenum);
 				assert(Nodes[nodenum] == nextnode);
 				nodenum++;
@@ -454,7 +472,7 @@ void UCT::Search()
 			usenode.push_back(search_node);
 		}	// if 展開
 
-		else	//プレイアウトとバックプロパゲーション
+		//プレイアウトとバックプロパゲーション
 		{
 			//playout();
 			int reward = playout(nowPlayer, turnnum, Nodes[search_node].board);
@@ -590,6 +608,7 @@ MoveCommand UCT::toMoveCommand(NodeNum from, NodeNum to)
 {
 	cout << "from:" << from << " to:" << to << endl;
 	assert(from != to);
+	assert(Nodes[from].board.willplayer != Nodes[to].board.willplayer);
 	MoveCommand move;
 	BitBoard from_bb = Nodes[from].board.myblue | Nodes[from].board.myred;
 	BitBoard to_bb = Nodes[to].board.myblue | Nodes[to].board.myred;
@@ -612,8 +631,8 @@ NodeNum UCT::Choice()
 {
 	assert(playnodenum < Nodes.size());
 	assert(!Nodes[playnodenum].nextnodes.empty());
-	NodeNum choice_nodenum = Nodes[playnodenum].nextnodes[0];
-	double maxvalue = (double)Nodes[choice_nodenum].value.win / Nodes[choice_nodenum].value.play;
+	NodeNum choice_nodenum = -1;
+	double maxvalue = -MAX_VALUE;
 	for (NodeNum nextnode : Nodes[playnodenum].nextnodes)
 	{
 		// 自分の手番⇒大きいのを選ぶ
@@ -622,6 +641,7 @@ NodeNum UCT::Choice()
 			choice_nodenum = nextnode;
 		}
 	}
+	assert(choice_nodenum != -1);
 	assert(playnodenum != choice_nodenum);
 	cout << "Value:" << Nodes[choice_nodenum].value.win << " Play:" << Nodes[choice_nodenum].value.play << endl;
 	return choice_nodenum;

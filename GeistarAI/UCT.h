@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vector>
-#include <map>
+#include <unordered_map>
 #include <thread>
 #include <mutex>
 
@@ -22,19 +22,19 @@ struct NodeValue
 {
 	int win = 0;
 	int play = 0;
-	double comp = MAX_VALUE;
+	//double comp = MAX_VALUE;
 
-	bool operator<(const NodeValue& right) const
-	{
-		return comp < right.comp;
-	}
-	bool operator>(const NodeValue& right) const
-	{
-		return comp > right.comp;
-	}
+	//bool operator<(const NodeValue& right) const
+	//{
+	//	return comp < right.comp;
+	//}
+	//bool operator>(const NodeValue& right) const
+	//{
+	//	return comp > right.comp;
+	//}
 	bool operator==(const NodeValue& right) const
 	{
-		return (win == right.win && play == right.play && comp == right.comp);
+		return (win == right.win && play == right.play /*&& comp == right.comp*/ );
 	}
 };
 struct Node
@@ -55,7 +55,7 @@ class UCT	//ゲーム終了まで1つの探索木で完結させるつもり
 private:
 	//探索木
 	vector<Node> Nodes;	//盤面を保存するノード達 
-	map<Board, int> board_index;	//盤面に対するノードの添え字を保存する
+	unordered_map<Board, int, BoardHash> board_index;	//盤面に対するノードの添え字を保存する
 
 	vector<thread> threads;
 	mutex mtx;
@@ -68,7 +68,7 @@ private:
 	Board playboard;
 
 	//UCTの各ノードの価値(?)を計算・保存する
-	void UpdateBoardValue(NodeValue& v);
+	//void UpdateBoardValue(NodeValue& v);
 	inline double compare(int win, int play)
 	{
 		return ((double)win / play) + FACTOR * pow(log(total_play) / play, 0.5);
