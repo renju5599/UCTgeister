@@ -2,15 +2,14 @@
 
 #include <vector>
 #include <unordered_map>
-#include <random>
+#include<random>
 
 #include "types.h"
 #include "rule.h"
 
-
 using namespace std;
 
-namespace UCT_simple
+namespace UCT_RootRF
 {
 
 	typedef int NodeNum;
@@ -19,6 +18,7 @@ namespace UCT_simple
 	{
 		double win = 0;
 		int play = 0;
+		double NN_score = 0;
 		//double comp = MAX_VALUE;
 
 		bool operator==(const NodeValue& right) const
@@ -31,7 +31,6 @@ namespace UCT_simple
 		Board board = {};
 		NodeValue value = {};
 		vector<NodeNum> nextnodes;	//子ノードを保存 (Nodesのハッシュ値を管理するだけ)
-		bool finish = 0;
 
 		bool operator==(const Node& right) const
 		{
@@ -53,14 +52,17 @@ namespace UCT_simple
 		int total_play;	//プレイアウト回数の総和
 		NodeNum playnodenum;	//ゲーム進行上の現在のノード
 		int playnum;	//ゲームのターン数
+		//Pieces pieces;	//駒の番号と位置を関連付ける
 		Board playboard;
-		vector<int> red_rate; //赤駒率
 
 		random_device rnd;
 		mt19937 mt;
 		uniform_int_distribution<> rand[65];
 
+		//UCTの各ノードの価値(?)を計算・保存する
+		//void UpdateBoardValue(NodeValue& v);
 
+		int NextBoard_byNN(Board nextboards[32], bool nowPlayer, int nextboards_size, BitsStatus& bsta_pre, double& res_pre);
 		//UCT内のプレイアウトをする関数
 		double playout(bool nowPlayer, int playoutnum, Board nowboard);
 
@@ -68,7 +70,9 @@ namespace UCT_simple
 		MoveCommand toMoveCommand(NodeNum from, NodeNum to);
 
 		void search_tree(int& turnnum, int& search_node, bool& nowPlayer);
+		void search_RF(int& turnnum, int& search_node, bool& nowPlayer);
 		int expansion(int search_node, bool nowPlayer);
+		int expansion_RF(int search_node, bool nowPlayer);
 
 	public:
 		//初期化
@@ -89,4 +93,5 @@ namespace UCT_simple
 		void PrintStatus();
 
 	}; //class MCT
+
 }

@@ -5,11 +5,40 @@
 
 #include "types.h"
 
+
 #define MYGOAL 0x0000000000000042
+#define MYGOAL_L 0x0000000000000040
+#define MYGOAL_R 0x0000000000000002
 #define ENGOAL 0x4200000000000000
+#define ENGOAL_L 0x4000000000000000
+#define ENGOAL_R 0x0200000000000000
 
 inline Point x(Point xy) { return xy & 7; }		// 1～6が盤面内
 inline Point y(Point xy) { return xy >> 3; }	// 1～6が盤面内
+inline Point x(BitBoard b)
+{
+	if (b & 0x8080808080808080) return 7;
+	if (b & 0x4040404040404040) return 6;
+	if (b & 0x2020202020202020) return 5;
+	if (b & 0x1010101010101010) return 4;
+	if (b & 0x0808080808080808) return 3;
+	if (b & 0x0404040404040404) return 2;
+	if (b & 0x0202020202020202) return 1;
+	if (b & 0x0101010101010101) return 0;
+	return 0;
+}
+inline Point y(BitBoard b)
+{
+	if (b & 0xff00000000000000) return 7;
+	if (b & 0x00ff000000000000) return 6;
+	if (b & 0x0000ff0000000000) return 5;
+	if (b & 0x000000ff00000000) return 4;
+	if (b & 0x00000000ff000000) return 3;
+	if (b & 0x0000000000ff0000) return 2;
+	if (b & 0x000000000000ff00) return 1;
+	if (b & 0x00000000000000ff) return 0;
+	return 0;
+}
 
 //内側だけのマスク処理
 inline BitBoard Inside(BitBoard bb)
@@ -60,62 +89,55 @@ inline Point toPoint_0indexed(uint8_t x, uint8_t y)
 {
 	return ((y + 1) << 3) + x + 1;
 }
+
 //実質底が2のlog
 inline Point toPoint(BitBoard bb)
 {
-	assert(bb != 0);
+	assert(__popcnt64(bb) == 1);
 	//二分探索で高速になりそう
-	const BitBoard flag[6] = {
-		0xffffffff00000000,
-		0xffff0000,
-		0xff00,
-		0xf0,
-		0xc,
-		0x2
-	};
-	const Point p[6] = {
-		32,
-		16,
-		8,
-		4,
-		2,
-		1
-	};
 	Point res = 0;
-	for (int i = 0; i < 6; i++)
-	{
-		if (bb & flag[i])
-		{
-			bb >>= p[i];
-			res += p[i];
-		}
-	}
+	res += (bb & 0xffffffff00000000) ? 32 : 0;
+	res += (bb & 0xffff0000ffff0000) ? 16 : 0;
+	res += (bb & 0xff00ff00ff00ff00) ? 8 : 0;
+	res += (bb & 0xf0f0f0f0f0f0f0f0) ? 4 : 0;
+	res += (bb & 0xcccccccccccccccc) ? 2 : 0;
+	res += (bb & 0xaaaaaaaaaaaaaaaa) ? 1 : 0;
 	return res;
 }
 
-inline Pieces toPieces(Recieve rec)
+inline void toPieces(Point pieces[16], Recieve rec)
 {
-	Pieces pieces = {};
 	int i = 4;
 	for (int j = 0; j < 16; i += 3, j++)
 	{
 		int x = rec[i] - '0';
 		int y = rec[i + 1] - '0';
 		char c = rec[i + 2];
-		if (x == 9) x = 6;
-		if (y == 9) y = 6;
+		if (x >= 6) x = 6;
+		if (y >= 6) y = 6;
 
-		pieces.pos[j] = toPoint_0indexed(x, y);
+		pieces[j] = toPoint_0indexed(x, y);
 	}
-	return pieces;
+}
+inline void toPieceNum(PieceNum num[64], Recieve rec)
+{
+	fill(num, num + 64, -1);
+	int i = 4;
+	for (int j = 0; j < 16; i += 3, j++)
+	{
+		int x = rec[i] - '0';
+		int y = rec[i + 1] - '0';
+		char c = rec[i + 2];
+		if (x >= 6) x = 6;
+		if (y >= 6) y = 6;
+
+		num[toPoint_0indexed(x, y)] = j;
+	}
 }
 
 inline Board toBoard(Recieve rec)
 {
 	Board res;
-	res.myblue = res.myred = res.enemy = res.enblue = res.enred = 0; 
-	res.dead_myblue = res.dead_myred = 1;
-	res.dead_enblue = res.dead_enred = 1;
 	int N = rec.size();
 	for (int i = 4, j = 0; j < 16; i += 3, j++)
 	{
@@ -128,11 +150,11 @@ inline Board toBoard(Recieve rec)
 			{
 				if (c == 'b')
 				{
-					res.dead_myblue <<= 1;
+					res.dead_myblue++;
 				}
 				else if (c == 'r')
 				{
-					res.dead_myred <<= 1;
+					res.dead_myred++;
 				}
 				else
 					assert(false);
@@ -160,11 +182,11 @@ inline Board toBoard(Recieve rec)
 			{
 				if (c == 'b')
 				{
-					res.dead_enblue <<= 1;
+					res.dead_enblue++;
 				}
 				else if (c == 'r')
 				{
-					res.dead_enred <<= 1;
+					res.dead_enred++;
 				}
 				else
 				{
@@ -178,19 +200,21 @@ inline Board toBoard(Recieve rec)
 			}
 		}
 	}
+	res.my = res.myblue | res.myred;
+	toPieces(res.pieces, rec);
 	return res;
 }
 
-inline PieceNum getPieceNum(Pieces pieces, Point point)
-{
-	for (PieceNum i = 0; i < 16; i++)
-	{
-		if (pieces.pos[i] == point)
-			return i;
-	}
-	assert(false);
-	return 255;
-}
+//inline PieceNum getPieceNum(Pieces pieces, Point point)
+//{
+//	for (PieceNum i = 0; i < 16; i++)
+//	{
+//		if (pieces.pos[i] == point)
+//			return i;
+//	}
+//	assert(false);
+//	return 255;
+//}
 
 //(↑…0, →…1, ↓…2, ←…3)
 inline Direct toDir(Point p, Point newpoint)
@@ -238,17 +262,29 @@ inline void change(BitBoard& bb, BitBoard ppos, BitBoard npos)
 	bb ^= (ppos ^ npos);
 }
 
-inline Send toSend(MoveCommand move, Pieces pieces)
+inline Send toSend_piece(MoveCommand move, Point pieces[16])
 {
 	Send sen("MOV:");
 	for (int i = 0; i < 8; i++)
 	{
-		if (onPiece(toBit(move.xy), pieces.pos[i]))
+		if (onPiece(toBit(move.xy), pieces[i]))
 		{
 			sen += (char)(i + 'A');
 			break;
 		}
 	}
+	sen += ',';
+	char dirchar[4] = { 'N', 'E', 'S', 'W' };
+	sen += dirchar[move.dir];
+
+	sen += "\r\n";
+
+	return sen;
+}
+inline Send toSend(MoveCommand move, PieceNum piecenum[64])
+{
+	Send sen("MOV:");
+	sen += (char)(piecenum[move.xy] + 'A');
 	sen += ',';
 	char dirchar[4] = { 'N', 'E', 'S', 'W' };
 	sen += dirchar[move.dir];
@@ -279,4 +315,213 @@ inline BitBoard getNextPosBB(BitBoard bb)
 	return ((bb << 8) | (bb << 1) | (bb >> 1) | (bb >> 8));
 }
 
-void PossibleNextBoard(vector<Board>& nextpositions, bool nowPlayer, Board board);
+inline BitBoard to36bit(BitBoard bb)
+{
+	BitBoard res = 0;
+	//00000000 01111110 01111110 01111110
+	res |= bb >> 9 & 0x3f;
+	res |= bb >> 11 & 0xfc0;
+	res |= bb >> 13 & 0x3f000;
+	res |= bb >> 15 & 0xfc0000;
+	res |= bb >> 17 & 0x3f000000;
+	res |= bb >> 19 & 0xfc0000000;
+	return res;
+}
+
+inline Point _abs(Point a)
+{
+	return ((a & 0x80) ? -a : a);
+	//return ((a & 0x80) ? (~a) + 1 : a);	//これが-aでできるのか
+}
+inline int distance(BitBoard a, BitBoard b)
+{
+	return _abs(x(a) - x(b)) + _abs(y(a) - y(b));
+}
+
+//移動前の位置pposと移動先の位置nposから boardを更新する
+inline void toNextBoard(Board& board, BitBoard ppos, BitBoard npos, bool nowPlayer)
+{
+	if (Goal(npos, nowPlayer))	//脱出した
+		board.escape = true;
+	else	//脱出してない
+		board.escape = false;
+
+	if (nowPlayer == 0)
+	{
+		//激遅ポイント
+		for (int i = 0; i < 8; i++)
+		{
+			if (toBit(board.pieces[i]) == ppos)
+			{
+				board.pieces[i] = toPoint(npos);
+				for (int j = 8; j < 16; j++)
+				{
+					if (toBit(board.pieces[j]) == npos)
+					{
+						board.pieces[j] = 63;
+						break;
+					}
+				}
+				break;
+			}
+		}
+		//
+		if (onPiece(board.myblue, ppos))	//青を動かした
+			change(board.myblue, ppos, npos);	//駒の移動
+		else	//赤を動かした
+			change(board.myred, ppos, npos);
+		board.my = board.myblue | board.myred;
+
+		//青駒を取った
+		if (onPiece(board.enblue, npos))
+		{
+			board.enemy ^= npos;
+			board.enblue ^= npos;
+			board.dead_enblue++;
+			board.kill = true;
+		}
+		//赤駒を取った
+		else if (onPiece(board.enred, npos))
+		{
+			board.enemy ^= npos;
+			board.enred ^= npos;
+			board.dead_enred++;
+			board.kill = true;
+		}
+		else if (onPiece(board.enemy, npos))
+		{
+			board.enemy ^= npos;	//敵駒を取った後の状態に
+			board.kill = true;
+		}
+		else	//敵駒を取らなかった
+		{
+			board.kill = false;
+		}
+		assert(board.enemy != 0);
+	}
+	else
+	{
+		//激遅ポイント
+		for (int i = 8; i < 16; i++)
+		{
+			if (toBit(board.pieces[i]) == ppos)
+			{
+				board.pieces[i] = toPoint(npos);
+				for (int j = 0; j < 8; j++)
+				{
+					if (toBit(board.pieces[j]) == npos)
+					{
+						board.pieces[j] = 63;
+					}
+				}
+				break;
+			}
+		}
+		//
+		change(board.enemy, ppos, npos);
+		if (onPiece(board.enblue, ppos))
+			change(board.enblue, ppos, npos);
+		if (onPiece(board.enred, ppos))
+			change(board.enred, ppos, npos);
+
+		if (onPiece(board.myblue, npos))	//青駒を取られた
+		{
+			board.myblue ^= npos;
+			board.my ^= npos;
+			board.kill = true;
+			board.dead_myblue++;
+		}
+		else if (onPiece(board.myred, npos))	//赤駒を取られた
+		{
+			board.myred ^= npos;
+			board.my ^= npos;
+			board.kill = true;
+			board.dead_myred++;
+		}
+		else
+		{
+			board.kill = false;
+		}
+	}
+}
+
+
+// すべての合法手後の盤面を配列に入れる
+// 敵駒の色判定はしない
+inline void PossibleNextBoard(Board nextpositions[32], bool nowPlayer, Board board, int& nextboards_size)
+{
+
+	//getBottomBB()とoffBottomBB()を使って高速に調べるようにしたい
+	if (nowPlayer == 0)
+	{
+		// どの位置の駒を動かすかのfor
+		for (BitBoard piecebb = board.my; piecebb != 0; offBottomBB(piecebb))
+		{
+			BitBoard ppos = getBottomBB(piecebb);
+			assert(ppos != 0);
+			// 移動4方向を見るfor
+			for (BitBoard nextbb = getNextPosBB(ppos); nextbb != 0; offBottomBB(nextbb))
+			{
+				BitBoard npos = getBottomBB(nextbb);
+				assert(npos != 0);
+
+				//合法かを見る
+				if (!Inside(npos) && !Goal(npos, nowPlayer))	//盤面外
+					continue;
+				if (Goal(npos, nowPlayer) && onPiece(board.myred, ppos))	//赤駒が脱出しようとした
+					continue;
+				if (onPiece(board.my, npos))	//自身の駒が重なる
+					continue;
+
+				board.willplayer = 1;
+
+				Board nextboard = board;
+				toNextBoard(nextboard, ppos, npos, nowPlayer);
+				//nextpositions.emplace_back(nextboard);
+				nextpositions[nextboards_size] = nextboard;
+				nextboards_size++;
+
+			} // for nextbb
+		} // for piecebb
+	} // if nowPlayer == 0
+	else
+	{
+		for (BitBoard piecebb = board.enemy; piecebb != 0; offBottomBB(piecebb))
+		{
+			BitBoard ppos = getBottomBB(piecebb);
+			for (BitBoard nextbb = getNextPosBB(ppos); nextbb != 0; offBottomBB(nextbb))
+			{
+				BitBoard npos = getBottomBB(nextbb);
+				if (!Inside(npos) && !Goal(npos, nowPlayer))	//盤面外
+					continue;
+				if (Goal(npos, nowPlayer) && onPiece(board.enred, ppos))	//赤駒が脱出しようとした
+					continue;
+				if (onPiece(board.enemy, npos))	//自身の駒が重なる
+					continue;
+
+				board.willplayer = 0;
+
+				Board nextboard = board;
+				toNextBoard(nextboard, ppos, npos, nowPlayer);
+				//nextpositions.emplace_back(nextboard);
+				nextpositions[nextboards_size] = nextboard;
+				nextboards_size++;
+			}
+		}
+
+	} //nowPlayer == 1
+
+	return;
+}
+
+#define FACTOR (pow(2, 0.5))
+#define MAX_VALUE (1LL << 30);
+inline double compare(double win, int play, int total_play)
+{
+	if (play == 0) return MAX_VALUE;
+	return (win / play) + FACTOR * pow(log(total_play) / play, 0.5);
+}
+inline double compare_RF(double win, int play, int parent_play, double NN_softmax)
+{
+	return ((win == 0 ? 0 : win / play)) + (log((1.0+parent_play+1965) / 1965.0) + 1.25) * NN_softmax * pow(parent_play, 0.5) / (1.0 + play);
+}

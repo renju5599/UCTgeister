@@ -23,15 +23,18 @@ int main()
     int win = 0;  // 勝った回数
     int draw = 0; // 引き分け回数
     int lose = 0; // 負けた回数
+		int AI_kind = 0;
 
     // 対戦の設定
     cout << "対戦回数 ポート番号 IPアドレス ↓" << endl;
     cin >> n >> port >> destination;
+		cout << "使用するAI{ [0]:UCT, [1]:UCT_RF, [2]:UCT_onlyRootRF } ↓" << endl;
+		cin >> AI_kind;
 
     // 対戦
     for (int i = 0; i < n; i++)
     {
-        res = Game_::playgame(port, destination); // 対戦
+        res = Game_::playgame(port, destination, AI_kind); // 対戦
         if (res == Game_::WON)
             win++; // 勝ち
         if (res == Game_::DRW)

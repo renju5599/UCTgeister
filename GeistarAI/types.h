@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <bitset>
 
 using namespace std;
 
@@ -10,35 +11,45 @@ template<class T>inline bool chmax(T& a, const T& b) { if (a < b) { a = b; retur
 template<class T>inline bool chmin(T& a, const T& b) { if (a > b) { a = b; return 1; } return 0; }
 
 typedef uint64_t BitBoard;
-typedef uint8_t Point;
-typedef uint8_t PieceNum;
-typedef uint8_t Direct;
+typedef int8_t Point;
+typedef int8_t Point36;
+typedef int8_t PieceNum;
+typedef int8_t Direct;
 typedef std::string Recieve;
 typedef std::string Send;
-typedef uint8_t Dead;
-typedef uint64_t Hash;
+typedef int8_t Dead;
 
-struct Status	//方策勾配法用
+
+
+struct BitsStatus	//方策勾配法用
 {
-	bool bit[122];
+	//bool bit[127];
+	//bool TwoPiece[8128];
+	//uint64_t bit[2] = {};
+	//uint64_t TwoPiece[127][2];
+	bitset<128> bit;
+	bitset<8128> TwoPiece;
 };
 
 struct Board
 {
-	BitBoard myblue, myred;
+	BitBoard my, myblue, myred;
 	BitBoard enemy, enblue, enred;
-	Dead dead_myblue, dead_myred;	//one-hot
-	Dead dead_enblue, dead_enred;	//one-hot
+	Dead dead_myblue, dead_myred;
+	Dead dead_enblue, dead_enred;
 	bool kill;
 	bool escape;
 	bool willplayer;
+	Point pieces[16];
+	bool myred_eval = false;
 
 	Board()
 	{
-		myblue = myred = enemy = enblue = enred = 0;
-		dead_myblue = dead_myred = 1;
-		dead_enblue = dead_enred = 1;
+		my = myblue = myred = enemy = enblue = enred = 0;
+		dead_myblue = dead_myred = 0;
+		dead_enblue = dead_enred = 0;
 		kill = escape = willplayer = 0;
+		fill(pieces, pieces + 16, 0);
 	}
 
 	bool const operator==(const Board& right) const
@@ -95,6 +106,7 @@ struct BoardHash
 	inline size_t operator()(const Board& data) const
 	{
 		return
+			hash<BitBoard>()(data.my) ^
 			hash<BitBoard>()(data.myblue) ^
 			hash<BitBoard>()(data.myred) ^
 			hash<BitBoard>()(data.enemy) ^
@@ -118,14 +130,3 @@ struct MoveCommand
 		dir = 0;
 	}
 };
-
-
-// 駒0～7がどこかを示す
-// 取られた駒は(9,9)ではなく(7,7)とする
-struct Pieces
-{
-	Point pos[16];
-};
-
-
-
