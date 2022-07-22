@@ -144,8 +144,10 @@
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="UCT.cpp" />
+    <ClCompile Include="UCT_Afterstates.cpp" />
     <ClCompile Include="UCT_onlyRoot.cpp" />
     <ClCompile Include="UCT_withRF.cpp" />
+    <ClCompile Include="UCT_withRFall.cpp" />
     <ClCompile Include="weight.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -157,8 +159,10 @@
     <ClInclude Include="rule.h" />
     <ClInclude Include="types.h" />
     <ClInclude Include="UCT.h" />
+    <ClInclude Include="UCT_Afterstates.h" />
     <ClInclude Include="UCT_onlyRoot.h" />
     <ClInclude Include="UCT_withRF.h" />
+    <ClInclude Include="UCT_withRFall.h" />
     <ClInclude Include="weight.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

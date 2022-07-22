@@ -110,7 +110,9 @@ namespace Game_
 
 		UCT_simple::UCT Tree(StartStr);
 		UCT_RF::UCT TreeRF(StartStr);
+		UCT_RFall::UCT TreeRFall(StartStr);
 		UCT_RootRF::UCT TreeRootRF(StartStr);
+		UCT_Afterstates::UCT TreeAfterstates(StartStr);
 
 		Recieve recieve;
 		Send send;
@@ -173,6 +175,24 @@ namespace Game_
 				TreeRootRF.PrintStatus();
 				UCT_RootRF::NodeNum move = TreeRootRF.Choice();  //探索結果に合わせてrootからノードを選択
 				send = TreeRootRF.MoveNode(move);    //選択したノードに遷移し、サーバーに送る文字列を受け取る
+			}
+			else if (AI_kind == 3)
+			{
+				TreeAfterstates.SetNode(recieve);         //受け取った文字列通りにセット
+				TreeAfterstates.Search();                 //探索
+				printf("Finish Search\n");
+				TreeAfterstates.PrintStatus();
+				UCT_Afterstates::NodeNum move = TreeAfterstates.Choice();  //探索結果に合わせてrootからノードを選択
+				send = TreeAfterstates.MoveNode(move);    //選択したノードに遷移し、サーバーに送る文字列を受け取る
+			}
+			else if (AI_kind == 4)
+			{
+				TreeRFall.SetNode(recieve);         //受け取った文字列通りにセット
+				TreeRFall.Search();                 //探索
+				printf("Finish Search\n");
+				TreeRFall.PrintStatus();
+				UCT_RFall::NodeNum move = TreeRFall.Choice();  //探索結果に合わせてrootからノードを選択
+				send = TreeRFall.MoveNode(move);    //選択したノードに遷移し、サーバーに送る文字列を受け取る
 			}
 
 			cout << send << endl;

@@ -28,7 +28,7 @@ int main()
     // 対戦の設定
     cout << "対戦回数 ポート番号 IPアドレス ↓" << endl;
     cin >> n >> port >> destination;
-		cout << "使用するAI{ [0]:UCT, [1]:UCT_RF, [2]:UCT_onlyRootRF } ↓" << endl;
+		cout << "使用するAI{ [0]:UCT, [1]:UCT_RF, [2]:UCT_onlyRootRF, [3]:UCT_Afterstates, [4]:UCT_RFall } ↓" << endl;
 		cin >> AI_kind;
 
     // 対戦

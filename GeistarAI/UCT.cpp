@@ -87,7 +87,7 @@ double UCT::playout(bool nowPlayer, int turnnum, Board nowboard)
 	int rednum = (4 - nowboard.dead_enred) - __popcnt64(nowboard.enred);	//わかっていない赤の数
 	int undefinenum = bluenum + rednum;
 
-	int ennum = __popcnt64(nowboard.enemy);	//生きている敵の数
+	int ennum = __popcnt64(nowboard.en_mix);	//生きている敵の数
 	
 
 	//倒されている敵駒を色決めする
@@ -149,7 +149,7 @@ double UCT::playout(bool nowPlayer, int turnnum, Board nowboard)
 				else
 				{
 					nowboard.enred |= toBit(nowboard.pieces[i]);
-					assert(onPiece(nowboard.enemy, nowboard.pieces[i]));
+					assert(onPiece(nowboard.en_mix, nowboard.pieces[i]));
 				}
 				sum -= Red::eval[i];
 				colored[i] = 1;
@@ -159,8 +159,8 @@ double UCT::playout(bool nowPlayer, int turnnum, Board nowboard)
 		undefinenum--;
 	}
 	nowboard.dead_enblue = (8 - ennum) - nowboard.dead_enred;
-	nowboard.enblue = nowboard.enemy & ~nowboard.enred;
-	assert(nowboard.enemy == (nowboard.enblue ^ nowboard.enred));
+	nowboard.enblue = nowboard.en_mix & ~nowboard.enred;
+	assert(nowboard.en_mix == (nowboard.enblue ^ nowboard.enred));
 
 	while (true)
 	{
@@ -177,8 +177,8 @@ double UCT::playout(bool nowPlayer, int turnnum, Board nowboard)
 			return WIN_VALUE + (nowboard.dead_enblue - nowboard.dead_enred) * 0.5;
 		if (nowboard.dead_enblue == 4)
 			return WIN_VALUE + (nowboard.dead_enblue - nowboard.dead_enred) * 0.5;
-		assert(__popcnt64(nowboard.enemy) >= 2);
-		assert(nowboard.enemy == (nowboard.enblue ^ nowboard.enred));
+		assert(__popcnt64(nowboard.en_mix) >= 2);
+		assert(nowboard.en_mix == (nowboard.enblue ^ nowboard.enred));
 
 
 		//変えてみる
@@ -204,7 +204,7 @@ double UCT::playout(bool nowPlayer, int turnnum, Board nowboard)
 		//通常の動き
 		else
 		{
-			ppos = (nowPlayer == 0 ? nowboard.my : nowboard.enemy);
+			ppos = (nowPlayer == 0 ? nowboard.my_mix : nowboard.en_mix);
 			npos = Inside(getNextPosBB(ppos) & ~ppos);	//移動先候補を抽出
 			assert(ppos != 0);
 			assert(npos != 0);
@@ -237,10 +237,8 @@ void UCT::search_tree(int& turnnum, int& search_node, bool& nowPlayer)
 	{
 		NodeNum choice_nodenum = -1;
 		double maxvalue = -MAX_VALUE, minvalue = MAX_VALUE;
-		assert(Nodes[search_node].board.willplayer == nowPlayer);
 		for (NodeNum nextnode : Nodes[search_node].nextnodes)
 		{
-			assert(Nodes[nextnode].board.willplayer != nowPlayer);
 			if (used[nextnode])	//2度同じ盤面は見ない
 				continue;
 			// 自分の手番⇒大きいのを選ぶ  相手の手番⇒小さいのを選ぶ
@@ -281,12 +279,8 @@ int UCT::expansion(int search_node, bool nowPlayer)
 	for(int i = 0; i < nextboards_size; i++)
 	{
 		Board nextboard = nextboards[i];
-		assert(nowPlayer == Nodes[search_node].board.willplayer);
-		assert(nextboard.willplayer != nowPlayer);
-		assert(Nodes[search_node].board.willplayer != nextboard.willplayer);
 		if (board_index[nextboard] != 0)	//ハッシュが設定済み（探索済みのノード）は繋げるだけ
 		{
-			assert(Nodes[search_node].board.willplayer != Nodes[board_index[nextboard]].board.willplayer);
 			Nodes[search_node].nextnodes.push_back(board_index[nextboard]);
 			continue;
 		}
@@ -298,7 +292,7 @@ int UCT::expansion(int search_node, bool nowPlayer)
 
 		//勝負がついているか
 		nextnode.finish = (
-			__popcnt64(nextnode.board.enemy) < 2 ||
+			__popcnt64(nextnode.board.en_mix) < 2 ||
 			nextnode.board.dead_enblue == 4 ||
 			nextnode.board.dead_enred == 4 ||
 			nextnode.board.dead_myblue == 4 ||
@@ -307,7 +301,6 @@ int UCT::expansion(int search_node, bool nowPlayer)
 			);
 
 		Nodes.emplace_back(nextnode);
-		assert(Nodes[search_node].board.willplayer != Nodes[nodenum].board.willplayer);
 		Nodes[search_node].nextnodes.push_back(nodenum);
 		assert(Nodes[nodenum] == nextnode);
 		nodenum++;
@@ -327,7 +320,6 @@ void UCT::Search()
 	fill(usenode, usenode + 302, 0);
 	usenode[playnum] = playnodenum;
 	
-	assert(Nodes[playnodenum].board.willplayer == nowPlayer);
 
 	//ルートの展開
 	expansion(search_node, nowPlayer);
@@ -380,10 +372,9 @@ MoveCommand UCT::toMoveCommand(NodeNum from, NodeNum to)
 {
 	cout << "from:" << from << " to:" << to << endl;
 	assert(from != to);
-	assert(Nodes[from].board.willplayer != Nodes[to].board.willplayer);
 	MoveCommand move;
-	BitBoard from_bb = Nodes[from].board.my;
-	BitBoard to_bb = Nodes[to].board.my;
+	BitBoard from_bb = Nodes[from].board.my_mix;
+	BitBoard to_bb = Nodes[to].board.my_mix;
 	assert(from_bb != to_bb);
 	BitBoard ppos = from_bb & ~to_bb;
 	BitBoard npos = ~from_bb & to_bb;

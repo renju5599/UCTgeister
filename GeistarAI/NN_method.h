@@ -100,7 +100,7 @@ inline void toBitsStatus(BitsStatus& bsta, const Board& board)
 	//use:36
 	bsta.bit |= (bitset<128>)to36bit(board.myred) << 42;
 	//use:78
-	bsta.bit |= (bitset<128>)to36bit(board.enemy) << 84;
+	bsta.bit |= (bitset<128>)to36bit(board.en_mix) << 84;
 	//use:120
 
 	dead_tobit(bsta, board.dead_enblue, 0);

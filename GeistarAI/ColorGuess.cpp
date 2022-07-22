@@ -11,7 +11,7 @@ namespace Red
 
 void Red::init()
 {
-	after_me.my = 0;
+	after_me.my_mix = 0;
 	for (int i = 0; i < 16; i++)
 	{
 		eval[i] = 2;
@@ -31,7 +31,7 @@ void Red::setAfterMe(string str)
 	}
 	after_me = after_enemy;
 	toNextBoard(after_me, toBit(Game_::pieces[str[4] - 'A'] - dir[i]), toBit(Game_::pieces[str[4] - 'A']), 0);
-	assert(after_me.my != after_enemy.my);
+	assert(after_me.my_mix != after_enemy.my_mix);
 }
 void Red::setAfterEnemy(string str)	//MOV?14B24B34R44B15R25B35R45R41u31u21u11u40u30u20u10u
 {
@@ -40,7 +40,7 @@ void Red::setAfterEnemy(string str)	//MOV?14B24B34R44B15R25B35R45R41u31u21u11u40
 
 void Red::setEval()
 {
-	if (Red::after_me.my == 0) return;
+	if (Red::after_me.my_mix == 0) return;
 	for (int i = 8; i < 16; i++)
 	{
 		if (Red::after_me.pieces[i] == 63 && eval[i] != 0)
@@ -49,27 +49,27 @@ void Red::setEval()
 	//敵に接していると赤
 	//ゴールできない奴が戻ろうとすると青
 	//ゴールできる奴が動かなかった。もしくは遠ざかった。
-	BitBoard prev = Red::after_me.enemy & ~Red::after_enemy.enemy;
-	BitBoard next = Red::after_enemy.enemy & ~Red::after_me.enemy;
+	BitBoard prev = Red::after_me.en_mix & ~Red::after_enemy.en_mix;
+	BitBoard next = Red::after_enemy.en_mix & ~Red::after_me.en_mix;
 	BitBoard BigRed = 0, BigBlue = 0, SmallRed = 0, SmallBlue = 0;
-	if (onPiece(Red::after_me.my, getNextPosBB(prev)))
+	if (onPiece(Red::after_me.my_mix, getNextPosBB(prev)))
 	{
-		if (!onPiece(Red::after_enemy.my, getNextPosBB(next)))
+		if (!onPiece(Red::after_enemy.my_mix, getNextPosBB(next)))
 		{
 			SmallBlue |= next;
 		}
 	}
-	for (BitBoard bb = Red::after_enemy.enemy; bb != 0; offBottomBB(bb))
+	for (BitBoard bb = Red::after_enemy.en_mix; bb != 0; offBottomBB(bb))
 	{
 		BitBoard b = getBottomBB(bb);
-		if (onPiece(Red::after_enemy.my, getNextPosBB(b)))
+		if (onPiece(Red::after_enemy.my_mix, getNextPosBB(b)))
 		{
 			SmallRed |= b;
 		}
 	}
 	int me_dist_L = 100, me_dist_R = 100;
 	int me_goal_dist = 100;
-	for (BitBoard bb = Red::after_me.my; bb != 0; offBottomBB(bb))
+	for (BitBoard bb = Red::after_me.my_mix; bb != 0; offBottomBB(bb))
 	{
 		BitBoard b = getBottomBB(bb);
 		chmin(me_dist_L, distance(ENGOAL_L, b));
@@ -77,7 +77,7 @@ void Red::setEval()
 		chmin(me_goal_dist, distance(MYGOAL_L, b));
 		chmin(me_goal_dist, distance(MYGOAL_R, b));
 	}
-	for (BitBoard bb = Red::after_me.enemy; bb != 0; offBottomBB(bb))
+	for (BitBoard bb = Red::after_me.en_mix; bb != 0; offBottomBB(bb))
 	{
 		BitBoard b = getBottomBB(bb);
 		int dist_l = distance(ENGOAL_L, b), dist_r = distance(ENGOAL_R, b);
@@ -109,7 +109,7 @@ void Red::setEval()
 	}
 	//BlueとRed変数からplayoutに使うランダムのウェイトに変換したい
 	bool countstop = false;	//カンストしたら赤を確定させて、他を赤じゃなくさせる
-	for(BitBoard b = Red::after_enemy.enemy; b != 0; offBottomBB(b))
+	for(BitBoard b = Red::after_enemy.en_mix; b != 0; offBottomBB(b))
 	{
 		BitBoard bb = getBottomBB(b);
 		assert(Game_::piecenum[toPoint(bb)] >= 8 && Game_::piecenum[toPoint(bb)] < 16);
@@ -146,7 +146,7 @@ void Red::setEval()
 	}
 	if (countstop)
 	{
-		for (BitBoard b = Red::after_enemy.enemy; b != 0; offBottomBB(b))
+		for (BitBoard b = Red::after_enemy.en_mix; b != 0; offBottomBB(b))
 		{
 			BitBoard bb = getBottomBB(b);
 			if (eval[Game_::piecenum[toPoint(bb)]] >= 65536)
@@ -158,7 +158,7 @@ void Red::setEval()
 
 void Red::setEvalafterMe()
 {
-	if (Red::after_enemy.my == 0) return;
+	if (Red::after_enemy.my_mix == 0) return;
 	for (int i = 0; i < 8; i++)
 	{
 		if (Red::after_me.pieces[i] == 63 && eval[i] != 0)
@@ -167,8 +167,8 @@ void Red::setEvalafterMe()
 	//敵に接していると赤
 	//ゴールできない奴が戻ろうとすると青
 	//ゴールできる奴が動かなかった。もしくは遠ざかった。
-	BitBoard prev = Red::after_enemy.my & ~Red::after_me.my;
-	BitBoard next = Red::after_me.my & ~Red::after_enemy.my;
+	BitBoard prev = Red::after_enemy.my_mix & ~Red::after_me.my_mix;
+	BitBoard next = Red::after_me.my_mix & ~Red::after_enemy.my_mix;
 	BitBoard BigRed = 0, BigBlue = 0, SmallRed = 0, SmallBlue = 0;
 	//if (onPiece(Red::after_enemy.enemy, getNextPosBB(prev)))
 	//{
@@ -187,7 +187,7 @@ void Red::setEvalafterMe()
 	//}
 	int en_dist_L = 100, en_dist_R = 100;
 	int en_goal_dist = 100;
-	for (BitBoard bb = Red::after_me.enemy; bb != 0; offBottomBB(bb))
+	for (BitBoard bb = Red::after_me.en_mix; bb != 0; offBottomBB(bb))
 	{
 		BitBoard b = getBottomBB(bb);
 		chmin(en_dist_L, distance(MYGOAL_L, b));
@@ -195,7 +195,7 @@ void Red::setEvalafterMe()
 		chmin(en_goal_dist, distance(ENGOAL_L, b));
 		chmin(en_goal_dist, distance(ENGOAL_R, b));
 	}
-	for (BitBoard bb = Red::after_me.my; bb != 0; offBottomBB(bb))
+	for (BitBoard bb = Red::after_me.my_mix; bb != 0; offBottomBB(bb))
 	{
 		BitBoard b = getBottomBB(bb);
 		int dist_l = distance(MYGOAL_L, b), dist_r = distance(MYGOAL_R, b);
@@ -223,7 +223,7 @@ void Red::setEvalafterMe()
 	//}
 	//BlueとRed変数からplayoutに使うランダムのウェイトに変換したい
 	bool countstop = false;	//カンストしたら赤を確定させて、他を赤じゃなくさせる
-	for (BitBoard b = Red::after_me.my; b != 0; offBottomBB(b))
+	for (BitBoard b = Red::after_me.my_mix; b != 0; offBottomBB(b))
 	{
 		BitBoard bb = getBottomBB(b);
 		assert(Game_::piecenum[toPoint(bb)] >= 0 && Game_::piecenum[toPoint(bb)] < 8);
@@ -260,7 +260,7 @@ void Red::setEvalafterMe()
 	}
 	if (countstop)
 	{
-		for (BitBoard b = Red::after_me.my; b != 0; offBottomBB(b))
+		for (BitBoard b = Red::after_me.my_mix; b != 0; offBottomBB(b))
 		{
 			BitBoard bb = getBottomBB(b);
 			if (eval[Game_::piecenum[toPoint(bb)]] >= 65536)

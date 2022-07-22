@@ -21,13 +21,13 @@
 #include "method.h"
 #include "NN_method.h"
 #include "weight.h"
-#include "UCT_withRF.h"
+#include "UCT_withRFall.h"
 #include "Game.h"
 #include "ColorGuess.h"
 
 using namespace std;
 
-using namespace UCT_RF;
+using namespace UCT_RFall;
 
 //double UCT::compare(int win, int play, double NN_softmax)
 //{
@@ -300,11 +300,11 @@ int UCT::playout(bool nowPlayer, int turnnum, Board nowboard)
 
 		/////	方策勾配法を用いる
 
-		//Board nextboards[32];
-		//int nextboards_size = 0;
-		//PossibleNextBoard(nextboards, nowPlayer, nowboard, nextboards_size);
-		//int nx = NextBoard_byNN(nextboards, nowPlayer, nextboards_size, bsta_pre, res_pre);
-		//nowboard = nextboards[nx];
+		Board nextboards[32];
+		int nextboards_size = 0;
+		PossibleNextBoard(nextboards, nowPlayer, nowboard, nextboards_size);
+		int nx = NextBoard_byNN(nextboards, nowPlayer, nextboards_size, bsta_pre, res_pre);
+		nowboard = nextboards[nx];
 
 		////
 
@@ -317,46 +317,46 @@ int UCT::playout(bool nowPlayer, int turnnum, Board nowboard)
 		//nowboard = nextboards[r];	//ランダムに次の手を決める
 
 		//変えてみる
-		BitBoard ppos = 0, npos = 0;
-		//ゴールできたらゴールする
-		if (nowPlayer == 0 && Goal(getNextPosBB(nowboard.myblue), 0))
-		{
-			ppos = getNextPosBB(MYGOAL) & nowboard.myblue;
-			ppos = getBottomBB(ppos);
-			npos = getNextPosBB(ppos) & MYGOAL;
-			assert(__popcnt64(npos) == 1);
+		//BitBoard ppos = 0, npos = 0;
+		////ゴールできたらゴールする
+		//if (nowPlayer == 0 && Goal(getNextPosBB(nowboard.myblue), 0))
+		//{
+		//	ppos = getNextPosBB(MYGOAL) & nowboard.myblue;
+		//	ppos = getBottomBB(ppos);
+		//	npos = getNextPosBB(ppos) & MYGOAL;
+		//	assert(__popcnt64(npos) == 1);
 
-		}
-		else if (nowPlayer == 1 && Goal(getNextPosBB(nowboard.enblue), 1))
-		{
-			ppos = getNextPosBB(ENGOAL) & nowboard.enblue;
-			//assert(__popcnt64(ppos) == 1);
-			ppos = getBottomBB(ppos);
-			npos = getNextPosBB(ppos) & ENGOAL;
-			assert(__popcnt64(npos) == 1);
-		}
-		//通常の動き
-		else
-		{
-			ppos = (nowPlayer == 0 ? nowboard.my_mix : nowboard.en_mix);
-			npos = Inside(getNextPosBB(ppos) & ~ppos);	//移動先候補を抽出
-			assert(ppos != 0);
-			assert(npos != 0);
-			//移動先をランダムに選択
-			int r = rand[__popcnt64(npos)](mt);
-			while (r--)
-				offBottomBB(npos);
-			npos = getBottomBB(npos);
-			//選択された移動先に行ける駒の中でランダムに選択
-			ppos &= getNextPosBB(npos);
-			assert(ppos != 0);
-			r = rand[__popcnt64(ppos)](mt);
-			while (r--)
-				offBottomBB(ppos);
-			ppos = getBottomBB(ppos);
-		}
-		//決めた行動をboardに変換する
-		toNextBoard(nowboard, ppos, npos, nowPlayer);
+		//}
+		//else if (nowPlayer == 1 && Goal(getNextPosBB(nowboard.enblue), 1))
+		//{
+		//	ppos = getNextPosBB(ENGOAL) & nowboard.enblue;
+		//	//assert(__popcnt64(ppos) == 1);
+		//	ppos = getBottomBB(ppos);
+		//	npos = getNextPosBB(ppos) & ENGOAL;
+		//	assert(__popcnt64(npos) == 1);
+		//}
+		////通常の動き
+		//else
+		//{
+		//	ppos = (nowPlayer == 0 ? nowboard.my_mix : nowboard.en_mix);
+		//	npos = Inside(getNextPosBB(ppos) & ~ppos);	//移動先候補を抽出
+		//	assert(ppos != 0);
+		//	assert(npos != 0);
+		//	//移動先をランダムに選択
+		//	int r = rand[__popcnt64(npos)](mt);
+		//	while (r--)
+		//		offBottomBB(npos);
+		//	npos = getBottomBB(npos);
+		//	//選択された移動先に行ける駒の中でランダムに選択
+		//	ppos &= getNextPosBB(npos);
+		//	assert(ppos != 0);
+		//	r = rand[__popcnt64(ppos)](mt);
+		//	while (r--)
+		//		offBottomBB(ppos);
+		//	ppos = getBottomBB(ppos);
+		//}
+		////決めた行動をboardに変換する
+		//toNextBoard(nowboard, ppos, npos, nowPlayer);
 		
 		
 		//ターンを進める

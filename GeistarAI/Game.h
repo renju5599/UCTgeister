@@ -9,7 +9,9 @@
 #include "types.h"
 #include "UCT.h"
 #include "UCT_withRF.h"
+#include "UCT_withRFall.h"
 #include "UCT_onlyRoot.h"
+#include "UCT_Afterstates.h"
 
 using namespace std;
 
