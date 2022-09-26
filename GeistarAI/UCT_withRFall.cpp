@@ -105,43 +105,61 @@ void UCT::SetNode(Recieve str)
 
 	board_index.clear();
 
-	int bluenum = (4 - Nodes[1].board.dead_enblue) - __popcnt64(Nodes[1].board.enblue);	//‚í‚©‚Á‚Ä‚¢‚È‚¢Â‚Ì”
-	int rednum = (4 - Nodes[1].board.dead_enred) - __popcnt64(Nodes[1].board.enred);	//‚í‚©‚Á‚Ä‚¢‚È‚¢Ô‚Ì”
-	int ennum = __popcnt64(Nodes[1].board.en_mix);	//¶‚«‚Ä‚¢‚é“G‚Ì”
-	int sum = 0;
+	//FŒˆ‚ß
+	//int bluenum = (4 - Nodes[1].board.dead_enblue) - __popcnt64(Nodes[1].board.enblue);	//‚í‚©‚Á‚Ä‚¢‚È‚¢Â‚Ì”
+	//int rednum = (4 - Nodes[1].board.dead_enred) - __popcnt64(Nodes[1].board.enred);	//‚í‚©‚Á‚Ä‚¢‚È‚¢Ô‚Ì”
+	//int ennum = __popcnt64(Nodes[1].board.en_mix);	//¶‚«‚Ä‚¢‚é“G‚Ì”
+	//int sum = 0;
+	//for (int i = 8; i < 16; i++)
+	//{
+	//	sum += Red::eval[i];
+	//}
+	//bool colored[16] = {};
+	//while (rednum--)
+	//{
+	//	int r = rnd() % sum;
+	//	int border = 0;
+	//	for (int i = 8; i < 16; i++)
+	//	{
+	//		if (colored[i])
+	//			continue;
+	//		border += Red::eval[i];
+	//		if (border > r)
+	//		{
+	//			if (Nodes[1].board.pieces[i] == 63)
+	//			{
+	//				Nodes[1].board.dead_enred++;
+	//			}
+	//			else
+	//			{
+	//				Nodes[1].board.enred |= toBit(Nodes[1].board.pieces[i]);
+	//				assert(onPiece(Nodes[1].board.en_mix, Nodes[1].board.pieces[i]));
+	//			}
+	//			sum -= Red::eval[i];
+	//			colored[i] = 1;
+	//			break;
+	//		}
+	//	}
+	//}
+	//Nodes[1].board.dead_enblue = (8 - ennum) - Nodes[1].board.dead_enred;
+	//Nodes[1].board.enblue = Nodes[1].board.en_mix & ~Nodes[1].board.enred;
+	
+	//’Eo‚µ‚È‚©‚Á‚½‚â‚Â‚ÍŒˆ‚ß‘Å‚¿‚ÅÔ
 	for (int i = 8; i < 16; i++)
 	{
-		sum += Red::eval[i];
-	}
-	bool colored[16] = {};
-	while (rednum--)
-	{
-		int r = rnd() % sum;
-		int border = 0;
-		for (int i = 8; i < 16; i++)
+		if (Red::eval[i] == RED_CNTSTOP)
 		{
-			if (colored[i])
-				continue;
-			border += Red::eval[i];
-			if (border > r)
+			if (Nodes[1].board.pieces[i] == 63)
 			{
-				if (Nodes[1].board.pieces[i] == 63)
-				{
-					Nodes[1].board.dead_enred++;
-				}
-				else
-				{
-					Nodes[1].board.enred |= toBit(Nodes[1].board.pieces[i]);
-					assert(onPiece(Nodes[1].board.en_mix, Nodes[1].board.pieces[i]));
-				}
-				sum -= Red::eval[i];
-				colored[i] = 1;
-				break;
+				Nodes[1].board.dead_enred++;
+			}
+			else
+			{
+				Nodes[1].board.enred |= toBit(Nodes[1].board.pieces[i]);
+				assert(onPiece(Nodes[1].board.en_mix, Nodes[1].board.pieces[i]));
 			}
 		}
 	}
-	Nodes[1].board.dead_enblue = (8 - ennum) - Nodes[1].board.dead_enred;
-	Nodes[1].board.enblue = Nodes[1].board.en_mix & ~Nodes[1].board.enred;
 
 	//Ô‚©Â‚©‚Ìo—Í
 	for (int i = 0; i < 64; i++)
@@ -249,7 +267,6 @@ int UCT::playout(bool nowPlayer, int turnnum, Board nowboard)
 	bool colored[16] = {};
 	while (rednum--)
 	{
-		//BitBoard bb = nowboard.enemy & ~nowboard.enblue & ~nowboard.enred;
 		int r = rnd() % sum;
 		int border = 0;
 		for (int i = 8; i < 16; i++)
@@ -292,7 +309,8 @@ int UCT::playout(bool nowPlayer, int turnnum, Board nowboard)
 		if (nowboard.dead_enred == 4)
 			return LOSE_VALUE;
 		if (nowboard.dead_myred == 4)
-			return WIN_VALUE;
+			//return WIN_VALUE;
+			return (nowboard.myred_eval ? LOSE_VALUE : WIN_VALUE * 0.5);
 		if (nowboard.dead_enblue == 4)
 			return WIN_VALUE;
 		assert(__popcnt64(nowboard.en_mix) >= 2);
@@ -437,7 +455,8 @@ int UCT::expansion(int search_node, bool nowPlayer)
 
 		//Ÿ•‰‚ª‚Â‚¢‚Ä‚¢‚é‚©
 		nextnode.finish = (
-			__popcnt64(nextnode.board.en_mix) < 2 ||
+			//__popcnt64(nextnode.board.en_mix) < 2 ||
+			(__popcnt64(nextnode.board.en_mix) <= 4 && (__popcnt64(nextnode.board.enred) == 0 || __popcnt64(nextnode.board.enblue) == 0)) ||
 			nextnode.board.dead_enblue == 4 ||
 			nextnode.board.dead_enred == 4 ||
 			nextnode.board.dead_myblue == 4 ||

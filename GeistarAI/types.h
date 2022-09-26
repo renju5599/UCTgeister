@@ -42,6 +42,7 @@ struct Board
 	bool escape;
 	Point pieces[16];
 	bool myred_eval = false;
+	bool player;
 
 	Board()
 	{
@@ -49,6 +50,7 @@ struct Board
 		dead_my = dead_myblue = dead_myred = 0;
 		dead_en = dead_enblue = dead_enred = 0;
 		kill = escape = 0;
+		player = 0;
 		fill(pieces, pieces + 16, 0);
 	}
 
@@ -61,10 +63,13 @@ struct Board
 			en != right.en ? false :
 			enblue != right.enblue ? false :
 			enred != right.enred ? false :
+			dead_my != right.dead_my ? false :
 			dead_myblue != right.dead_myblue ? false :
 			dead_myred != right.dead_myred ? false :
+			dead_en != right.dead_en ? false :
 			dead_enblue != right.dead_enblue ? false :
 			dead_enred != right.dead_enred ? false :
+			player != right.player ? false :
 			true
 			);
 	}
@@ -87,7 +92,8 @@ struct BoardHash
 			hash<Dead>()(data.dead_myred) ^
 			hash<Dead>()(data.dead_en) ^
 			hash<Dead>()(data.dead_enblue) ^
-			hash<Dead>()(data.dead_enred);
+			hash<Dead>()(data.dead_enred) ^ 
+			hash<bool>()(data.player);
 	}
 };
 

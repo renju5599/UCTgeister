@@ -77,43 +77,61 @@ void UCT::SetNode(Recieve str)
 
 	board_index.clear();
 
-	int bluenum = (4 - Nodes[1].board.dead_enblue) - __popcnt64(Nodes[1].board.enblue);	//わかっていない青の数
-	int rednum = (4 - Nodes[1].board.dead_enred) - __popcnt64(Nodes[1].board.enred);	//わかっていない赤の数
-	int ennum = __popcnt64(Nodes[1].board.en_mix);	//生きている敵の数
-	int sum = 0;
+	//色決め
+	//int bluenum = (4 - Nodes[1].board.dead_enblue) - __popcnt64(Nodes[1].board.enblue);	//わかっていない青の数
+	//int rednum = (4 - Nodes[1].board.dead_enred) - __popcnt64(Nodes[1].board.enred);	//わかっていない赤の数
+	//int ennum = __popcnt64(Nodes[1].board.en_mix);	//生きている敵の数
+	//int sum = 0;
+	//for (int i = 8; i < 16; i++)
+	//{
+	//	sum += Red::eval[i];
+	//}
+	//bool colored[16] = {};
+	//while (rednum--)
+	//{
+	//	int r = rnd() % sum;
+	//	int border = 0;
+	//	for (int i = 8; i < 16; i++)
+	//	{
+	//		if (colored[i])
+	//			continue;
+	//		border += Red::eval[i];
+	//		if (border > r)
+	//		{
+	//			if (Nodes[1].board.pieces[i] == 63)
+	//			{
+	//				Nodes[1].board.dead_enred++;
+	//			}
+	//			else
+	//			{
+	//				Nodes[1].board.enred |= toBit(Nodes[1].board.pieces[i]);
+	//				assert(onPiece(Nodes[1].board.en_mix, Nodes[1].board.pieces[i]));
+	//			}
+	//			sum -= Red::eval[i];
+	//			colored[i] = 1;
+	//			break;
+	//		}
+	//	}
+	//}
+	//Nodes[1].board.dead_enblue = (8 - ennum) - Nodes[1].board.dead_enred;
+	//Nodes[1].board.enblue = Nodes[1].board.en_mix & ~Nodes[1].board.enred;
+
+	//脱出しなかったやつは決め打ちで赤
 	for (int i = 8; i < 16; i++)
 	{
-		sum += Red::eval[i];
-	}
-	bool colored[16] = {};
-	while (rednum--)
-	{
-		int r = rnd() % sum;
-		int border = 0;
-		for (int i = 8; i < 16; i++)
+		if (Red::eval[i] == RED_CNTSTOP)
 		{
-			if (colored[i])
-				continue;
-			border += Red::eval[i];
-			if (border > r)
+			if (Nodes[1].board.pieces[i] == 63)
 			{
-				if (Nodes[1].board.pieces[i] == 63)
-				{
-					Nodes[1].board.dead_enred++;
-				}
-				else
-				{
-					Nodes[1].board.enred |= toBit(Nodes[1].board.pieces[i]);
-					assert(onPiece(Nodes[1].board.en_mix, Nodes[1].board.pieces[i]));
-				}
-				sum -= Red::eval[i];
-				colored[i] = 1;
-				break;
+				Nodes[1].board.dead_enred++;
+			}
+			else
+			{
+				Nodes[1].board.enred |= toBit(Nodes[1].board.pieces[i]);
+				assert(onPiece(Nodes[1].board.en_mix, Nodes[1].board.pieces[i]));
 			}
 		}
 	}
-	Nodes[1].board.dead_enblue = (8 - ennum) - Nodes[1].board.dead_enred;
-	Nodes[1].board.enblue = Nodes[1].board.en_mix & ~Nodes[1].board.enred;
 
 	//赤か青かの出力
 	for (int i = 0; i < 64; i++)
@@ -123,7 +141,7 @@ void UCT::SetNode(Recieve str)
 		else if (Game_::piecenum[i] < 8)
 			cout << "my" << "\t";
 		else
-			cout << ((Nodes[1].board.enred & toBit(Nodes[1].board.pieces[Game_::piecenum[i]])) ? 'r' : 'b') << "\t";
+			cout << ((Nodes[1].board.enred & toBit(Nodes[1].board.pieces[Game_::piecenum[i]])) ? 'r' : '?') << "\t";
 		if (i % 8 == 7) cout << endl;
 	}
 
@@ -168,15 +186,15 @@ int UCT::NextBoard_byNN(Board nextboards[32], bool nowPlayer, int nextboards_siz
 //UCT内のプレイアウトをする関数
 double UCT::playout(bool nowPlayer, int turnnum, Board nowboard)
 {
-	//int bluenum = (4 - nowboard.dead_enblue) - __popcnt64(nowboard.enblue);	//わかっていない青の数
-	//int rednum = (4 - nowboard.dead_enred) - __popcnt64(nowboard.enred);	//わかっていない赤の数
-	//int undefinenum = bluenum + rednum;
-	//int ennum = __popcnt64(nowboard.enemy);	//生きている敵の数
+	int bluenum = (4 - nowboard.dead_enblue) - __popcnt64(nowboard.enblue);	//わかっていない青の数
+	int rednum = (4 - nowboard.dead_enred) - __popcnt64(nowboard.enred);	//わかっていない赤の数
+	int undefinenum = bluenum + rednum;
+	int ennum = __popcnt64(nowboard.en_mix);	//生きている敵の数
 	
 	//BitsStatus bsta_pre;
 	//double res_pre;
 
-	//倒されている敵駒を色決めする
+	////倒されている敵駒を色決めする
 	//while (ennum < undefinenum)
 	//{
 	//	int r = rand[undefinenum](mt);
@@ -193,11 +211,11 @@ double UCT::playout(bool nowPlayer, int turnnum, Board nowboard)
 	//	undefinenum--;
 	//}
 
-	//盤面上の敵駒を色決めする
+	////盤面上の敵駒を色決めする
 	//while (bluenum--)
 	//{
 	//	int r = rand[undefinenum](mt);
-	//	BitBoard bb = nowboard.enemy & ~nowboard.enblue & ~nowboard.enred;
+	//	BitBoard bb = nowboard.en_mix & ~nowboard.enblue & ~nowboard.enred;
 	//	while (r--)
 	//	{
 	//		offBottomBB(bb);
@@ -207,44 +225,43 @@ double UCT::playout(bool nowPlayer, int turnnum, Board nowboard)
 	//	undefinenum--;
 	//}
 	//assert(undefinenum == rednum);
-	//nowboard.enred = nowboard.enemy & ~nowboard.enblue;
+	//nowboard.enred = nowboard.en_mix & ~nowboard.enblue;
 
-	//int sum = 0;
-	//for (int i = 8; i < 16; i++)
-	//{
-	//	sum += Red::eval[i];
-	//}
-	//bool colored[16] = {};
-	//while (rednum--)
-	//{
-	//	//BitBoard bb = nowboard.enemy & ~nowboard.enblue & ~nowboard.enred;
-	//	int r = rnd() % sum;
-	//	int border = 0;
-	//	for (int i = 8; i < 16; i++)
-	//	{
-	//		if (colored[i])
-	//			continue;
-	//		border += Red::eval[i];
-	//		if (border > r)
-	//		{
-	//			if (nowboard.pieces[i] == 63)
-	//			{
-	//				nowboard.dead_enred++;
-	//			}
-	//			else
-	//			{
-	//				nowboard.enred |= toBit(nowboard.pieces[i]);
-	//				assert(onPiece(nowboard.enemy, nowboard.pieces[i]));
-	//			}
-	//			sum -= Red::eval[i];
-	//			colored[i] = 1;
-	//			break;
-	//		}
-	//	}
-	//	undefinenum--;
-	//}
-	//nowboard.dead_enblue = (8 - ennum) - nowboard.dead_enred;
-	//nowboard.enblue = nowboard.enemy & ~nowboard.enred;
+	int sum = 0;
+	for (int i = 8; i < 16; i++)
+	{
+		sum += Red::eval[i];
+	}
+	bool colored[16] = {};
+	while (rednum--)
+	{
+		int r = rnd() % sum;
+		int border = 0;
+		for (int i = 8; i < 16; i++)
+		{
+			if (colored[i])
+				continue;
+			border += Red::eval[i];
+			if (border > r)
+			{
+				if (nowboard.pieces[i] == 63)
+				{
+					nowboard.dead_enred++;
+				}
+				else
+				{
+					nowboard.enred |= toBit(nowboard.pieces[i]);
+					assert(onPiece(nowboard.enemy, nowboard.pieces[i]));
+				}
+				sum -= Red::eval[i];
+				colored[i] = 1;
+				break;
+			}
+		}
+		undefinenum--;
+	}
+	nowboard.dead_enblue = (8 - ennum) - nowboard.dead_enred;
+	nowboard.enblue = nowboard.en_mix & ~nowboard.enred;
 	assert(nowboard.en_mix == (nowboard.enblue ^ nowboard.enred));
 
 	while (true)
@@ -338,8 +355,11 @@ void UCT::search_tree(int& turnnum, int& search_node, bool& nowPlayer)
 	while (turnnum < MAXPLAY && !Nodes[search_node].nextnodes.empty())	//木の端まで見る
 	{
 		// 勝負がついていたら終わり
+		// ↓これだと終わる可能性ありの最速なのでこっちが良き？（木のサイズが小さくできそう）
+		// __popcnt64(Nodes[search_node].board.en_mix) < 2 => __popcnt64(Nodes[search_node].board.en_mix) <= 4 && (__popcnt64(Nodes[search_node].board.enred) == 0 || __popcnt64(Nodes[search_node].board.enblue) == 0)
 		if (
-			__popcnt64(Nodes[search_node].board.en_mix) < 2 ||
+			//__popcnt64(Nodes[search_node].board.en_mix) < 2 ||
+			(__popcnt64(Nodes[search_node].board.en_mix) <= 4 && (__popcnt64(Nodes[search_node].board.enred) == 0 || __popcnt64(Nodes[search_node].board.enblue) == 0)) ||
 			Nodes[search_node].board.dead_enblue == 4 ||
 			Nodes[search_node].board.dead_enred == 4 ||
 			Nodes[search_node].board.dead_myblue == 4 ||
@@ -352,6 +372,12 @@ void UCT::search_tree(int& turnnum, int& search_node, bool& nowPlayer)
 
 		NodeNum choice_nodenum = -1;
 		double maxvalue = -MAX_VALUE, minvalue = MAX_VALUE;
+		double softmax_sum = 0;
+		for (NodeNum nextnode : Nodes[search_node].nextnodes)
+		{
+			//softmax_sum += exp((nowPlayer == 0 ? 1 : -1) * Nodes[nextnode].value.NN_score);
+			if (nowPlayer == 0) softmax_sum += exp(Nodes[nextnode].value.NN_score);
+		}
 		for (NodeNum nextnode : Nodes[search_node].nextnodes)
 		{
 			if (used[nextnode])	//2度同じ盤面は見ない
@@ -363,8 +389,10 @@ void UCT::search_tree(int& turnnum, int& search_node, bool& nowPlayer)
 				break;
 			}
 			if ((nowPlayer == 0 ?
-				chmax(maxvalue, compare(Nodes[nextnode].value.win / 2.0, Nodes[nextnode].value.play, total_play)) :
-				chmax(maxvalue, compare(-Nodes[nextnode].value.win / 2.0, Nodes[nextnode].value.play, total_play))))
+				chmax(maxvalue, compare_RF(Nodes[nextnode].value.win / 2.0, Nodes[nextnode].value.play, Nodes[search_node].value.play, exp(Nodes[nextnode].value.NN_score) / softmax_sum * 0.10)) :
+				//chmax(maxvalue, compare_RF(Nodes[nextnode].value.play - Nodes[nextnode].value.win / 2.0, Nodes[nextnode].value.play, Nodes[search_node].value.play, exp(-Nodes[nextnode].value.NN_score) / softmax_sum))))
+				//chmax(maxvalue, compare(Nodes[nextnode].value.win / 2.0, Nodes[nextnode].value.play, total_play)) :
+				chmax(maxvalue, compare(Nodes[nextnode].value.play - Nodes[nextnode].value.win / 2.0, Nodes[nextnode].value.play, total_play))))
 			{
 				choice_nodenum = nextnode;
 			}
@@ -517,7 +545,8 @@ void UCT::Search()
 
 		//展開
 		if (
-			__popcnt64(Nodes[search_node].board.en_mix) < 2 ||
+			//__popcnt64(Nodes[search_node].board.en_mix) < 2 ||
+			(__popcnt64(Nodes[search_node].board.en_mix) <= 4 && (__popcnt64(Nodes[search_node].board.enred) == 0 || __popcnt64(Nodes[search_node].board.enblue) == 0)) ||
 			Nodes[search_node].board.dead_enblue == 4 ||
 			Nodes[search_node].board.dead_enred == 4 ||
 			Nodes[search_node].board.dead_myblue == 4 ||

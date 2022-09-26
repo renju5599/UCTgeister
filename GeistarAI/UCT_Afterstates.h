@@ -12,7 +12,7 @@ using namespace std;
 namespace UCT_Afterstates
 {
 
-	typedef int NodeNum;
+	typedef size_t NodeNum;
 
 	struct NodeValue
 	{
@@ -67,9 +67,9 @@ namespace UCT_Afterstates
 		//木の"親ノード","子ノード"を入れると、遷移時のMoveCommandを返す
 		MoveCommand toMoveCommand(NodeNum from, NodeNum to);
 
-		void search_tree(int& turnnum, int& search_node, bool& nowPlayer);
-		int expansion(int search_node, bool nowPlayer);
-		int expansion_afterstates(int search_node, bool nowPlayer);
+		void search_tree(int& turnnum, NodeNum& search_node, bool& nowPlayer);
+		int expansion(NodeNum search_node, bool nowPlayer);
+		int expansion_afterstates(NodeNum search_node, bool nowPlayer);
 
 	public:
 		//初期化

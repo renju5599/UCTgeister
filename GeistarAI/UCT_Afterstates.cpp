@@ -303,7 +303,7 @@ double UCT::playout(bool nowPlayer, int turnnum, Board nowboard)
 	} // while(true)
 }
 
-void UCT::search_tree(int& turnnum, int& search_node, bool& nowPlayer)
+void UCT::search_tree(int& turnnum, NodeNum& search_node, bool& nowPlayer)
 {
 	while (turnnum < MAXPLAY && !Nodes[search_node].nextnodes.empty())	//木の端まで見る
 	{
@@ -322,6 +322,7 @@ void UCT::search_tree(int& turnnum, int& search_node, bool& nowPlayer)
 
 		NodeNum choice_nodenum = -1;
 		double maxvalue = -MAX_VALUE;
+
 		for (NodeNum nextnode : Nodes[search_node].nextnodes)
 		{
 			if (used[nextnode])	//2度同じ盤面は見ない
@@ -353,7 +354,7 @@ void UCT::search_tree(int& turnnum, int& search_node, bool& nowPlayer)
 	}//while(!empty())
 }
 
-int UCT::expansion(int search_node, bool nowPlayer)
+int UCT::expansion(NodeNum search_node, bool nowPlayer)
 {
 	// 打てる手の候補を抽出する
 	Board nextboards[32];
@@ -365,8 +366,11 @@ int UCT::expansion(int search_node, bool nowPlayer)
 	for (int i = 0; i < nextboards_size; i++)
 	{
 		Board nextboard = nextboards[i];
+		nextboard.player = !nowPlayer;
+		assert(!(nowPlayer == 1 && nextboard.dead_en != 0));
 		if (board_index[nextboard] != 0)	//ハッシュが設定済み（探索済みのノード）は繋げるだけ
 		{
+			assert(nextboard == Nodes[board_index[nextboard]].board);
 			Nodes[search_node].nextnodes.push_back(board_index[nextboard]);
 			continue;
 		}
@@ -389,13 +393,14 @@ int UCT::expansion(int search_node, bool nowPlayer)
 
 //打ってnowPlayerが変わった後
 //敵駒がゴール前にいるときに一回、相手駒を取ったときに一回使う
-//1手打ったら最大二回
-int UCT::expansion_afterstates(int search_node, bool nowPlayer)
+//1手打ったら最大二回(ルートノードのみ)
+int UCT::expansion_afterstates(NodeNum search_node, bool nowPlayer)
 {
 	//取った駒やゴールしそうな駒があるとき、分岐して色決めする
 	BitBoard near_goal = Nodes[search_node].board.en & getNextPosBB(ENGOAL);
 	if (near_goal)
 	{
+		assert(__popcnt64(near_goal) == 1);
 		Board nextboards[2] = { Nodes[search_node].board, Nodes[search_node].board };
 		int nextboards_size = 2;
 
@@ -419,6 +424,7 @@ int UCT::expansion_afterstates(int search_node, bool nowPlayer)
 			Node nextnode;
 			nextnode.board = nextboard;
 			nextnode.nextnodes.clear();
+			nextnode.player = nowPlayer;
 
 			Nodes.emplace_back(nextnode);
 			Nodes[search_node].nextnodes.push_back(nodenum);
@@ -464,6 +470,7 @@ int UCT::expansion_afterstates(int search_node, bool nowPlayer)
 			Node nextnode;
 			nextnode.board = nextboard;
 			nextnode.nextnodes.clear();
+			nextnode.player = nowPlayer;
 
 			Nodes.emplace_back(nextnode);
 			Nodes[search_node].nextnodes.push_back(nodenum);
@@ -477,7 +484,10 @@ int UCT::expansion_afterstates(int search_node, bool nowPlayer)
 	}
 
 	//何もなければそのまま
-	assert(Nodes[search_node].board.dead_en == 0);
+	if (Nodes[search_node].board.dead_en != 0)
+	{
+		assert(Nodes[search_node].board.dead_en == 0);
+	}
 	assert(Nodes[search_node].board.dead_my == 0);
 	return search_node;
 }
@@ -519,8 +529,18 @@ void UCT::Search()
 				search_node = expansion_afterstates(search_node, nowPlayer);
 				if (pre_node == search_node)
 				{
+					assert(Nodes[search_node].board.dead_en == 0);
 					search_node = expansion(search_node, nowPlayer);
 					nowPlayer = !nowPlayer;
+					if (nowPlayer != Nodes[search_node].player)
+					{
+						assert(nowPlayer == Nodes[search_node].player);
+					}
+				}
+				assert(pre_node != search_node);
+				if (Nodes[search_node].player != Nodes[search_node].board.player)
+				{
+					assert(Nodes[search_node].player == Nodes[search_node].board.player);
 				}
 				//次の手
 				turnnum++;

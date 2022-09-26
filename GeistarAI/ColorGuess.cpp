@@ -46,8 +46,8 @@ void Red::setEval()
 		if (Red::after_me.pieces[i] == 63 && eval[i] != 0)
 			eval[i] = 0;
 	}
-	//“G‚ÉÚ‚µ‚Ä‚¢‚é‚ÆÔ
-	//ƒS[ƒ‹‚Å‚«‚È‚¢“z‚ª–ß‚ë‚¤‚Æ‚·‚é‚ÆÂ
+	//“G‚ÉÚ‚µ‚Ä‚¢‚é‚ÆÔ -> nashi
+	//ƒS[ƒ‹‚Å‚«‚È‚¢“z‚ª–ß‚ë‚¤‚Æ‚·‚é‚ÆÂ -> nashi
 	//ƒS[ƒ‹‚Å‚«‚é“z‚ª“®‚©‚È‚©‚Á‚½B‚à‚µ‚­‚Í‰“‚´‚©‚Á‚½B
 	BitBoard prev = Red::after_me.en_mix & ~Red::after_enemy.en_mix;
 	BitBoard next = Red::after_enemy.en_mix & ~Red::after_me.en_mix;
@@ -116,40 +116,40 @@ void Red::setEval()
 		if (onPiece(BigRed, bb))
 		{
 			eval[Game_::piecenum[toPoint(bb)]] *= 16;
-			if (eval[Game_::piecenum[toPoint(bb)]] >= 65536)
+			if (eval[Game_::piecenum[toPoint(bb)]] >= RED_CNTSTOP)
 			{
-				eval[Game_::piecenum[toPoint(bb)]] = 65536;
+				eval[Game_::piecenum[toPoint(bb)]] = RED_CNTSTOP;
 				//countstop = true;
 			}
 		}
-		else if (onPiece(SmallRed, bb))
-		{
-			eval[Game_::piecenum[toPoint(bb)]] *= 2;
-			if (eval[Game_::piecenum[toPoint(bb)]] >= 65536)
-			{
-				eval[Game_::piecenum[toPoint(bb)]] = 65536;
-				//countstop = true;
-			}
-		}
-		else if (onPiece(SmallBlue, bb))
-		{
-			eval[Game_::piecenum[toPoint(bb)]] /= 2;
-			if (eval[Game_::piecenum[toPoint(bb)]] < 1)
-				eval[Game_::piecenum[toPoint(bb)]] = 1;
-		}
-		else if (onPiece(BigBlue, bb))
-		{
-			eval[Game_::piecenum[toPoint(bb)]] /= 16;
-			if (eval[Game_::piecenum[toPoint(bb)]] < 1)
-				eval[Game_::piecenum[toPoint(bb)]] = 1;
-		}
+		//else if (onPiece(SmallRed, bb))
+		//{
+		//	eval[Game_::piecenum[toPoint(bb)]] *= 2;
+		//	if (eval[Game_::piecenum[toPoint(bb)]] >= RED_CNTSTOP)
+		//	{
+		//		eval[Game_::piecenum[toPoint(bb)]] = RED_CNTSTOP;
+		//		//countstop = true;
+		//	}
+		//}
+		//else if (onPiece(SmallBlue, bb))
+		//{
+		//	eval[Game_::piecenum[toPoint(bb)]] /= 2;
+		//	if (eval[Game_::piecenum[toPoint(bb)]] < 1)
+		//		eval[Game_::piecenum[toPoint(bb)]] = 1;
+		//}
+		//else if (onPiece(BigBlue, bb))
+		//{
+		//	eval[Game_::piecenum[toPoint(bb)]] /= 16;
+		//	if (eval[Game_::piecenum[toPoint(bb)]] < 1)
+		//		eval[Game_::piecenum[toPoint(bb)]] = 1;
+		//}
 	}
 	if (countstop)
 	{
 		for (BitBoard b = Red::after_enemy.en_mix; b != 0; offBottomBB(b))
 		{
 			BitBoard bb = getBottomBB(b);
-			if (eval[Game_::piecenum[toPoint(bb)]] >= 65536)
+			if (eval[Game_::piecenum[toPoint(bb)]] >= RED_CNTSTOP)
 				continue;
 			eval[Game_::piecenum[toPoint(bb)]] = 1;
 		}
@@ -164,8 +164,8 @@ void Red::setEvalafterMe()
 		if (Red::after_me.pieces[i] == 63 && eval[i] != 0)
 			eval[i] = 0;
 	}
-	//“G‚ÉÚ‚µ‚Ä‚¢‚é‚ÆÔ
-	//ƒS[ƒ‹‚Å‚«‚È‚¢“z‚ª–ß‚ë‚¤‚Æ‚·‚é‚ÆÂ
+	//“G‚ÉÚ‚µ‚Ä‚¢‚é‚ÆÔ -> nashi
+	//ƒS[ƒ‹‚Å‚«‚È‚¢“z‚ª–ß‚ë‚¤‚Æ‚·‚é‚ÆÂ -> nashi
 	//ƒS[ƒ‹‚Å‚«‚é“z‚ª“®‚©‚È‚©‚Á‚½B‚à‚µ‚­‚Í‰“‚´‚©‚Á‚½B
 	BitBoard prev = Red::after_enemy.my_mix & ~Red::after_me.my_mix;
 	BitBoard next = Red::after_me.my_mix & ~Red::after_enemy.my_mix;
@@ -229,19 +229,19 @@ void Red::setEvalafterMe()
 		assert(Game_::piecenum[toPoint(bb)] >= 0 && Game_::piecenum[toPoint(bb)] < 8);
 		if (onPiece(BigRed, bb))
 		{
-			eval[Game_::piecenum[toPoint(bb)]] *= 8;
-			if (eval[Game_::piecenum[toPoint(bb)]] >= 65536)
+			eval[Game_::piecenum[toPoint(bb)]] *= 16;
+			if (eval[Game_::piecenum[toPoint(bb)]] >= RED_CNTSTOP)
 			{
-				eval[Game_::piecenum[toPoint(bb)]] = 65536;
+				eval[Game_::piecenum[toPoint(bb)]] = RED_CNTSTOP;
 				//countstop = true;
 			}
 		}
 		else if (onPiece(SmallRed, bb))
 		{
 			eval[Game_::piecenum[toPoint(bb)]] *= 2;
-			if (eval[Game_::piecenum[toPoint(bb)]] >= 65536)
+			if (eval[Game_::piecenum[toPoint(bb)]] >= RED_CNTSTOP)
 			{
-				eval[Game_::piecenum[toPoint(bb)]] = 65536;
+				eval[Game_::piecenum[toPoint(bb)]] = RED_CNTSTOP;
 				//countstop = true;
 			}
 		}
@@ -263,7 +263,7 @@ void Red::setEvalafterMe()
 		for (BitBoard b = Red::after_me.my_mix; b != 0; offBottomBB(b))
 		{
 			BitBoard bb = getBottomBB(b);
-			if (eval[Game_::piecenum[toPoint(bb)]] >= 65536)
+			if (eval[Game_::piecenum[toPoint(bb)]] >= RED_CNTSTOP)
 				continue;
 			eval[Game_::piecenum[toPoint(bb)]] = 1;
 		}
