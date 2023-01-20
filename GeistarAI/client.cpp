@@ -29,6 +29,7 @@ namespace client
 
 		do
 		{
+			Sleep(10);
 			int byte = recv(dstSocket, buffer, 1, 0); //•¶š‚ğóM
 
 			if (byte == 0)

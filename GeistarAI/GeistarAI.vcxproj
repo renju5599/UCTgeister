@@ -144,8 +144,11 @@
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="UCT.cpp" />
+    <ClCompile Include="UCTandAlphaBeta_RedDec.cpp" />
+    <ClCompile Include="UCTwithRFandABRed.cpp" />
     <ClCompile Include="UCT_Afterstates.cpp" />
     <ClCompile Include="UCT_onlyRoot.cpp" />
+    <ClCompile Include="UCT_RedDec.cpp" />
     <ClCompile Include="UCT_withRF.cpp" />
     <ClCompile Include="UCT_withRFall.cpp" />
     <ClCompile Include="weight.cpp" />
@@ -159,8 +162,11 @@
     <ClInclude Include="rule.h" />
     <ClInclude Include="types.h" />
     <ClInclude Include="UCT.h" />
+    <ClInclude Include="UCTandAlphaBeta_RedDec.h" />
+    <ClInclude Include="UCTwithRFandABRed.h" />
     <ClInclude Include="UCT_Afterstates.h" />
     <ClInclude Include="UCT_onlyRoot.h" />
+    <ClInclude Include="UCT_RedDec.h" />
     <ClInclude Include="UCT_withRF.h" />
     <ClInclude Include="UCT_withRFall.h" />
     <ClInclude Include="weight.h" />

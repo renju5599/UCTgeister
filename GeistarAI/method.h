@@ -56,13 +56,17 @@ inline bool Goal(Point xy, bool player)
 }
 inline bool Goal(BitBoard bb, bool player)
 {
-	return (player == 1 && (bb & ENGOAL)) || (player == 0 && (bb & MYGOAL));
+	return bb & (player ? ENGOAL : MYGOAL);
 	//if (player == 1 && (bb & ENGOAL))
 	//	return true;
 	//else if (player == 0 && (bb & MYGOAL))
 	//	return true;
 	//else
 	//	return false;
+}
+inline BitBoard InsideOrGoal(BitBoard bb, bool player)
+{
+	return (bb & (0x007E7E7E7E7E7E00 | (player ? ENGOAL : MYGOAL)));
 }
 
 inline BitBoard toBit(Point xy)
@@ -467,6 +471,95 @@ inline void toNextBoard(Board& board, BitBoard ppos, BitBoard npos, bool nowPlay
 	}
 }
 
+//board.piece[]を使わない
+inline void toNextBoard_quick(Board& board, BitBoard ppos, BitBoard npos, bool nowPlayer)
+{
+	if (Goal(npos, nowPlayer))	//脱出した
+		board.escape = true;
+	else	//脱出してない
+		board.escape = false;
+
+	if (nowPlayer == 0)
+	{
+		if (onPiece(board.myblue, ppos))	//青を動かした
+			change(board.myblue, ppos, npos);	//駒の移動
+		else	//赤を動かした
+			change(board.myred, ppos, npos);
+		board.my_mix = board.myblue | board.myred | board.my;
+
+		if (onPiece(board.en_mix, npos))
+		{
+			//青駒を取った
+			if (onPiece(board.enblue, npos))
+			{
+				board.enblue ^= npos;
+				board.dead_enblue++;
+			}
+			//赤駒を取った
+			else if (onPiece(board.enred, npos))
+			{
+				board.enred ^= npos;
+				board.dead_enred++;
+			}
+			else if (onPiece(board.en, npos))
+			{
+				board.en ^= npos;
+				board.dead_en++;
+			}
+			else
+			{
+				assert(false);
+			}
+			board.en_mix ^= npos;	//敵駒を取った後の状態に
+			board.kill = true;
+		}
+		else	//敵駒を取らなかった
+		{
+			board.kill = false;
+		}
+		assert(board.en_mix != 0);
+	}
+	else
+	{
+		change(board.en_mix, ppos, npos);
+		if (onPiece(board.enblue, ppos))
+			change(board.enblue, ppos, npos);
+		if (onPiece(board.enred, ppos))
+			change(board.enred, ppos, npos);
+		if (onPiece(board.en, ppos))
+			change(board.en, ppos, npos);
+
+		if (onPiece(board.my_mix, npos))
+		{
+			if (onPiece(board.myblue, npos))	//青駒を取られた
+			{
+				board.myblue ^= npos;
+				board.dead_myblue++;
+			}
+			else if (onPiece(board.myred, npos))	//赤駒を取られた
+			{
+				board.myred ^= npos;
+				board.dead_myred++;
+			}
+			else if (onPiece(board.my, npos))
+			{
+				board.my ^= npos;
+				board.dead_my++;
+			}
+			else
+			{
+				assert(false);
+			}
+			board.my_mix ^= npos;
+			board.kill = true;
+		}
+		else
+		{
+			board.kill = false;
+		}
+	}
+}
+
 
 // すべての合法手後の盤面を配列に入れる
 // 敵駒の色判定はしない
@@ -534,9 +627,103 @@ inline void PossibleNextBoard(Board nextpositions[32], bool nowPlayer, Board boa
 	return;
 }
 
+inline void PossibleNextBoard_quick(Board nextpositions[32], bool nowPlayer, Board board, int& nextboards_size)
+{
 
+	//getBottomBB()とoffBottomBB()を使って高速に調べるようにしたい
+	if (nowPlayer == 0)
+	{
+		// どの位置の駒を動かすかのfor
+		for (BitBoard piecebb = board.my_mix; piecebb != 0; offBottomBB(piecebb))
+		{
+			BitBoard ppos = getBottomBB(piecebb);
+			assert(ppos != 0);
+			// 移動4方向を見るfor
+			for (BitBoard nextbb = getNextPosBB(ppos); nextbb != 0; offBottomBB(nextbb))
+			{
+				BitBoard npos = getBottomBB(nextbb);
+				assert(npos != 0);
+
+				//合法かを見る
+				if (!Inside(npos) && !Goal(npos, nowPlayer))	//盤面外
+					continue;
+				if (Goal(npos, nowPlayer) && onPiece(board.myred, ppos))	//赤駒が脱出しようとした
+					continue;
+				if (onPiece(board.my_mix, npos))	//自身の駒が重なる
+					continue;
+
+
+				Board nextboard = board;
+				toNextBoard_quick(nextboard, ppos, npos, nowPlayer);
+				//nextpositions.emplace_back(nextboard);
+				nextpositions[nextboards_size] = nextboard;
+				nextboards_size++;
+
+			} // for nextbb
+		} // for piecebb
+	} // if nowPlayer == 0
+	else
+	{
+		for (BitBoard piecebb = board.en_mix; piecebb != 0; offBottomBB(piecebb))
+		{
+			BitBoard ppos = getBottomBB(piecebb);
+			for (BitBoard nextbb = getNextPosBB(ppos); nextbb != 0; offBottomBB(nextbb))
+			{
+				BitBoard npos = getBottomBB(nextbb);
+				if (!Inside(npos) && !Goal(npos, nowPlayer))	//盤面外
+					continue;
+				if (Goal(npos, nowPlayer) && onPiece(board.enred, ppos))	//赤駒が脱出しようとした
+					continue;
+				if (onPiece(board.en_mix, npos))	//自身の駒が重なる
+					continue;
+
+
+				Board nextboard = board;
+				toNextBoard_quick(nextboard, ppos, npos, nowPlayer);
+				//nextpositions.emplace_back(nextboard);
+				nextpositions[nextboards_size] = nextboard;
+				nextboards_size++;
+			}
+		}
+
+	} //nowPlayer == 1
+
+	return;
+}
+
+inline int intsqrt(int a)
+{
+	if (a < 1) return 0;
+	int l = 0, r = a;
+	int c = 0;
+	while (r - l > 1)
+	{
+		c = (l + r) / 2;
+		if (c * c <= a)
+			l = c;
+		else
+			r = c;
+	}
+	return l;
+}
+inline int intlog(int a)
+{
+	int res = 0;
+	res += (a & 0xffff0000) ? 16 : 0;
+	res += (a & 0xff00ff00) ? 8 : 0;
+	res += (a & 0xf0f0f0f0) ? 4 : 0;
+	res += (a & 0xcccccccc) ? 2 : 0;
+	res += (a & 0xaaaaaaaa) ? 1 : 0;
+	return res;
+}
 #define FACTOR 1.41421356 //(pow(2, 0.5)) のままでは毎回演算するはず(?)
 #define MAX_VALUE (1LL << 30);
+inline int intcompare(int win, int play, int total_play)
+{
+	//return (play == 0 ? 0.5 : win / play) + FACTOR * pow(log(total_play) / (1.0+play), 0.5);
+	if (play == 0) return MAX_VALUE;
+	return (win * 100 / play) + 141 * intsqrt(intlog(total_play) * 100 / play);
+}
 inline double compare(double win, int play, int total_play)
 {
 	//return (play == 0 ? 0.5 : win / play) + FACTOR * pow(log(total_play) / (1.0+play), 0.5);
@@ -545,7 +732,7 @@ inline double compare(double win, int play, int total_play)
 }
 inline double compare_RF(double win, int play, int parent_play, double NN_softmax)
 {
-	return (play == 0 ? 0.5 : win / play) + (log((1.0 + parent_play + 1965) / 1965.0) + 1.25) * NN_softmax * pow(parent_play, 0.5) / (1.0 + play);
+	return (play == 0 ? 0.5 : win / play) + (log((1.0 + parent_play + 19652) / 19652.0) + 1.25) * NN_softmax * pow(parent_play, 0.5) / (1.0 + play);
 	//return (win == 0 ? 0 : win / play) + (log((1.0 + parent_play + 1965) / 1965.0) + 1.25) * NN_softmax * pow(parent_play, 0.5) / (1.0 + play);
 	//play==0なら当然win==0だよねという工夫
 	//でもplay==0なら引き分けが良いのでは?

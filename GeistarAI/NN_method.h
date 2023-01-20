@@ -104,7 +104,7 @@ inline void toBitsStatus(BitsStatus& bsta, const Board& board)
 	//use:120
 
 	dead_tobit(bsta, board.dead_enblue, 0);
-	dead_tobit(bsta, board.dead_enred, 1);
+	dead_tobit(bsta, board.dead_enred + board.dead_en, 1);
 	dead_tobit(bsta, board.dead_myblue, 2);
 	dead_tobit(bsta, board.dead_myred, 3);
 

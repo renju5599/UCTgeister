@@ -10,6 +10,7 @@ namespace Red {
 
 	extern int eval[16];	//ê‘ìx
 	extern Board after_me, after_enemy;
+	extern bool decided;
 
 	void init();
 	void setAfterMe(string str);

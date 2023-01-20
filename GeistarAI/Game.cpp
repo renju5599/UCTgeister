@@ -6,6 +6,7 @@ namespace Game_
 {
 	PieceNum piecenum[64] = {};
 	Point pieces[16] = {};
+	int turn = 0;
 
 	//sの先頭がt ⇔ true
 	bool startWith(string& s, string t)
@@ -113,6 +114,9 @@ namespace Game_
 		UCT_RFall::UCT TreeRFall(StartStr);
 		UCT_RootRF::UCT TreeRootRF(StartStr);
 		UCT_Afterstates::UCT TreeAfterstates(StartStr);
+		UCT_RedDec::UCT TreeRedDec(StartStr);
+		UCTandAlphaBeta_RedDec::UCTandAlphaBeta TreeUCT_AB(StartStr);
+		UCTwithRFandABRed::UCTandAlphaBeta TreeUCTRF_AB(StartStr);
 
 		Recieve recieve;
 		Send send;
@@ -123,10 +127,17 @@ namespace Game_
 
 		Red::init();
 
+		
 		//試合
 		while (true)
 		{
 			recieve = client::Recv(dstSocket); // サーバーからの文字列を受け取る
+			if (recieve.back() != '\n')
+			{
+				client::closePort(dstSocket);
+				client::openPort(dstSocket, port, destination);
+				continue;
+			}
 			result = Game_::isEnd(recieve);    // ゲームの終了判定
 			if (result)
 				break;                     // 終了してたら繰り返し抜ける
@@ -134,18 +145,21 @@ namespace Game_
 			toPieceNum(piecenum, recieve);
 			toPieces(pieces, recieve);
 			////赤駒推測関係
-			Red::setAfterEnemy(recieve);
-			Red::setEval();
-			cout << "赤っぽさ" << endl;
-			for (int i = 0; i < 64; i++)
+			if (AI_kind != 5 && AI_kind != 6 && AI_kind != 7 && AI_kind != 8)
 			{
-				if (Game_::piecenum[i] == -1)
-					cout << 0 << "\t";
-				else if(Game_::piecenum[i] < 8)
-					cout << Red::eval[Game_::piecenum[i]] << "*\t";
-				else
-					cout << Red::eval[Game_::piecenum[i]] << "\t";
-				if (i % 8 == 7) cout << endl;
+				Red::setAfterEnemy(recieve);
+				Red::setEval();
+				cout << "赤っぽさ" << endl;
+				for (int i = 0; i < 64; i++)
+				{
+					if (Game_::piecenum[i] == -1)
+						cout << 0 << "\t";
+					else if (Game_::piecenum[i] < 8)
+						cout << Red::eval[Game_::piecenum[i]] << "*\t";
+					else
+						cout << Red::eval[Game_::piecenum[i]] << "\t";
+					if (i % 8 == 7) cout << endl;
+				}
 			}
 			////
 
@@ -194,15 +208,81 @@ namespace Game_
 				UCT_RFall::NodeNum move = TreeRFall.Choice();  //探索結果に合わせてrootからノードを選択
 				send = TreeRFall.MoveNode(move);    //選択したノードに遷移し、サーバーに送る文字列を受け取る
 			}
+			else if (AI_kind == 5)
+			{
+				TreeRedDec.SetNode(recieve);         //受け取った文字列通りにセット
+				TreeRedDec.Search(0);                 //探索
+				printf("Finish Search\n");
+				TreeRedDec.PrintStatus();
+				UCT_RedDec::NodeNum move = TreeRedDec.Choice();  //探索結果に合わせてrootからノードを選択
+				TreeRedDec.changeRed_pos(move);
+				send = TreeRedDec.MoveNode(move);    //選択したノードに遷移し、サーバーに送る文字列を受け取る
+			}
+			else if (AI_kind == 6)
+			{
+				TreeRedDec.SetNode(recieve);         //受け取った文字列通りにセット
+				TreeRedDec.Search(1);                 //探索
+				printf("Finish Search\n");
+				TreeRedDec.PrintStatus();
+				UCT_RedDec::NodeNum move = TreeRedDec.Choice();  //探索結果に合わせてrootからノードを選択
+				TreeRedDec.changeRed_pos(move);
+				send = TreeRedDec.MoveNode(move);    //選択したノードに遷移し、サーバーに送る文字列を受け取る
+			}
+			else if (AI_kind == 7)
+			{
+				TreeUCT_AB.SetNode(recieve);
+				if (turn < 20)
+				{
+					printf("UCT\n");
+					TreeUCT_AB.Search();
+					printf("Finish Search\n");
+					TreeUCT_AB.PrintStatus();
+					UCTandAlphaBeta_RedDec::NodeNum move = TreeUCT_AB.Choice();  //探索結果に合わせてrootからノードを選択
+					TreeUCT_AB.changeRed_pos(move);
+					send = TreeUCT_AB.MoveNode(move);    //選択したノードに遷移し、サーバーに送る文字列を受け取る
+				}
+				else
+				{
+					printf("AlphaBeta\n");
+					send = TreeUCT_AB.Search_AB();
+					printf("Finish Search\n");
+				}
+			}
+			else if (AI_kind == 8)
+			{
+				TreeUCTRF_AB.SetNode(recieve);
+				if (turn < 20)
+				{
+					printf("UCTwithRF\n");
+					TreeUCTRF_AB.Search();
+					printf("Finish Search\n");
+					TreeUCTRF_AB.PrintStatus();
+					UCTandAlphaBeta_RedDec::NodeNum move = TreeUCTRF_AB.Choice();  //探索結果に合わせてrootからノードを選択
+					TreeUCTRF_AB.changeRed_pos(move);
+					send = TreeUCTRF_AB.MoveNode(move);    //選択したノードに遷移し、サーバーに送る文字列を受け取る
+				}
+				else
+				{
+					printf("AlphaBeta\n");
+					send = TreeUCTRF_AB.Search_AB();
+					printf("Finish Search\n");
+				}
+			}
+			
 
 			cout << send << endl;
 			client::Send(dstSocket, send); //サーバーに文字列を送る
 			client::Recv(dstSocket);       // ACKの受信
 
 			//赤駒推測関係
-			Red::setAfterMe(send);
-			Red::setEvalafterMe();
+			if (AI_kind != 5 && AI_kind != 6 && AI_kind != 7 && AI_kind != 8)
+			{
+				Red::setAfterMe(send);
+				Red::setEvalafterMe();
+			}
 			//
+
+			turn += 2;
 		}
 
 		client::closePort(dstSocket);

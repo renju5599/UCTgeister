@@ -6,11 +6,13 @@
 namespace Red
 {
 	int eval[16];	//ê‘ìx
+	bool decided;
 	Board after_me, after_enemy;
 }
 
 void Red::init()
 {
+	decided = false;
 	after_me.my_mix = 0;
 	for (int i = 0; i < 16; i++)
 	{
@@ -115,34 +117,36 @@ void Red::setEval()
 		assert(Game_::piecenum[toPoint(bb)] >= 8 && Game_::piecenum[toPoint(bb)] < 16);
 		if (onPiece(BigRed, bb))
 		{
-			eval[Game_::piecenum[toPoint(bb)]] *= 16;
+			//eval[Game_::piecenum[toPoint(bb)]] *= 16;
+			eval[Game_::piecenum[toPoint(bb)]] = RED_CNTSTOP;
+			decided = true;
+			//if (eval[Game_::piecenum[toPoint(bb)]] >= RED_CNTSTOP)
+			//{
+			//	eval[Game_::piecenum[toPoint(bb)]] = RED_CNTSTOP;
+			//	//countstop = true;
+			//}
+		}
+		else if (onPiece(SmallRed, bb))
+		{
+			eval[Game_::piecenum[toPoint(bb)]] *= 2;
 			if (eval[Game_::piecenum[toPoint(bb)]] >= RED_CNTSTOP)
 			{
 				eval[Game_::piecenum[toPoint(bb)]] = RED_CNTSTOP;
 				//countstop = true;
 			}
 		}
-		//else if (onPiece(SmallRed, bb))
-		//{
-		//	eval[Game_::piecenum[toPoint(bb)]] *= 2;
-		//	if (eval[Game_::piecenum[toPoint(bb)]] >= RED_CNTSTOP)
-		//	{
-		//		eval[Game_::piecenum[toPoint(bb)]] = RED_CNTSTOP;
-		//		//countstop = true;
-		//	}
-		//}
-		//else if (onPiece(SmallBlue, bb))
-		//{
-		//	eval[Game_::piecenum[toPoint(bb)]] /= 2;
-		//	if (eval[Game_::piecenum[toPoint(bb)]] < 1)
-		//		eval[Game_::piecenum[toPoint(bb)]] = 1;
-		//}
-		//else if (onPiece(BigBlue, bb))
-		//{
-		//	eval[Game_::piecenum[toPoint(bb)]] /= 16;
-		//	if (eval[Game_::piecenum[toPoint(bb)]] < 1)
-		//		eval[Game_::piecenum[toPoint(bb)]] = 1;
-		//}
+		else if (onPiece(SmallBlue, bb))
+		{
+			eval[Game_::piecenum[toPoint(bb)]] /= 2;
+			if (eval[Game_::piecenum[toPoint(bb)]] < 1)
+				eval[Game_::piecenum[toPoint(bb)]] = 1;
+		}
+		else if (onPiece(BigBlue, bb))
+		{
+			eval[Game_::piecenum[toPoint(bb)]] /= 16;
+			if (eval[Game_::piecenum[toPoint(bb)]] < 1)
+				eval[Game_::piecenum[toPoint(bb)]] = 1;
+		}
 	}
 	if (countstop)
 	{
@@ -229,7 +233,8 @@ void Red::setEvalafterMe()
 		assert(Game_::piecenum[toPoint(bb)] >= 0 && Game_::piecenum[toPoint(bb)] < 8);
 		if (onPiece(BigRed, bb))
 		{
-			eval[Game_::piecenum[toPoint(bb)]] *= 16;
+			//eval[Game_::piecenum[toPoint(bb)]] *= 16;
+			eval[Game_::piecenum[toPoint(bb)]] = RED_CNTSTOP;
 			if (eval[Game_::piecenum[toPoint(bb)]] >= RED_CNTSTOP)
 			{
 				eval[Game_::piecenum[toPoint(bb)]] = RED_CNTSTOP;

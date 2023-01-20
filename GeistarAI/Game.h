@@ -12,6 +12,9 @@
 #include "UCT_withRFall.h"
 #include "UCT_onlyRoot.h"
 #include "UCT_Afterstates.h"
+#include "UCT_RedDec.h"
+#include "UCTandAlphaBeta_RedDec.h"
+#include "UCTwithRFandABRed.h"
 
 using namespace std;
 
@@ -22,6 +25,7 @@ namespace Game_
 	const int DRW = 3; // 引き分け
 	extern PieceNum piecenum[64];
 	extern Point pieces[16];	//駒の番号と位置を関連付ける
+	extern int turn;
 
 	bool startWith(string &s, string t);				// sの先頭とtの一致判定
 	int isEnd(string s);												// ゲームの終了判定

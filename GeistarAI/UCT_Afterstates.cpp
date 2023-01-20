@@ -39,7 +39,8 @@ UCT::UCT(Recieve str)
 	Nodes[1].board = toBoard(str);
 	Nodes[1].value = { 0, 0 };
 	Nodes[1].nextnodes.clear();
-	Nodes[1].player = 0;
+	//Nodes[1].player = 0;
+	Nodes[1].finish = 0;
 
 	nodenum = 2;
 	total_play = 0;
@@ -67,10 +68,13 @@ void UCT::SetNode(Recieve str)
 		Nodes[1].board = toBoard(str);
 		Nodes[1].value = { 0, 0 };
 		Nodes[1].nextnodes.clear();
-		Nodes[1].player = 0;
+		//Nodes[1].player = 0;
+		Nodes[1].finish = 0;
+
 		nodenum = 2;
 		total_play = 0;
 		playnodenum = 1;
+
 		board_index.clear();
 	}
 	else
@@ -107,6 +111,15 @@ void UCT::SetNode(Recieve str)
 
 	}
 
+	//自分の赤がバレた
+	for (int i = 0; i < 8; i++)
+	{
+		if (onPiece(Nodes[1].board.myred, Game_::pieces[i]) && Red::eval[i] == RED_CNTSTOP)
+		{
+			Nodes[1].board.myred_eval = true;
+			break;
+		}
+	}
 }
 
 
@@ -114,112 +127,63 @@ void UCT::SetNode(Recieve str)
 //UCT内のプレイアウトをする関数
 double UCT::playout(bool nowPlayer, int turnnum, Board nowboard)
 {
-	//int bluenum = (4 - nowboard.dead_enblue) - __popcnt64(nowboard.enblue);	//わかっていない青の数
-	//int rednum = (4 - nowboard.dead_enred) - __popcnt64(nowboard.enred);	//わかっていない赤の数
-	//int undefinenum = bluenum + rednum;
-	//int ennum = __popcnt64(nowboard.enemy);	//生きている敵の数
-	
-	//BitsStatus bsta_pre;
-	//double res_pre;
+	//駒の色決め
+	int bluenum = 4 - nowboard.dead_enblue - __popcnt64(nowboard.enblue);	//わかっていない青の数
+	int rednum = 4 - nowboard.dead_enred - __popcnt64(nowboard.enred);	//わかっていない赤の数
+	int undefinenum = bluenum + rednum;
+	int ennum = __popcnt64(nowboard.en_mix);	//生きている敵の数
 
 	//倒されている敵駒を色決めする
-	//while (ennum < undefinenum)
-	//{
-	//	int r = rand[undefinenum](mt);
-	//	if (r < bluenum)
-	//	{
-	//		nowboard.dead_enblue++;
-	//		bluenum--;
-	//	}
-	//	else
-	//	{
-	//		nowboard.dead_enred++;
-	//		rednum--;
-	//	}
-	//	undefinenum--;
-	//}
+	while (ennum < undefinenum)
+	{
+		int r = rand[undefinenum](mt);
+		if (r < bluenum)
+		{
+			nowboard.dead_enblue++;
+			bluenum--;
+		}
+		else
+		{
+			nowboard.dead_enred++;
+			rednum--;
+		}
+		undefinenum--;
+	}
 
 	//盤面上の敵駒を色決めする
-	//while (bluenum--)
-	//{
-	//	int r = rand[undefinenum](mt);
-	//	BitBoard bb = nowboard.enemy & ~nowboard.enblue & ~nowboard.enred;
-	//	while (r--)
-	//	{
-	//		offBottomBB(bb);
-	//	}
-	//	bb = getBottomBB(bb);
-	//	nowboard.enblue |= bb;
-	//	undefinenum--;
-	//}
-	//assert(undefinenum == rednum);
-	//nowboard.enred = nowboard.enemy & ~nowboard.enblue;
-
-	//int sum = 0;
-	//for (int i = 8; i < 16; i++)
-	//{
-	//	sum += Red::eval[i];
-	//}
-	//bool colored[16] = {};
-	//while (rednum--)
-	//{
-	//	//BitBoard bb = nowboard.enemy & ~nowboard.enblue & ~nowboard.enred;
-	//	int r = rnd() % sum;
-	//	int border = 0;
-	//	for (int i = 8; i < 16; i++)
-	//	{
-	//		if (colored[i])
-	//			continue;
-	//		border += Red::eval[i];
-	//		if (border > r)
-	//		{
-	//			if (nowboard.pieces[i] == 63)
-	//			{
-	//				nowboard.dead_enred++;
-	//			}
-	//			else
-	//			{
-	//				nowboard.enred |= toBit(nowboard.pieces[i]);
-	//				assert(onPiece(nowboard.enemy, nowboard.pieces[i]));
-	//			}
-	//			sum -= Red::eval[i];
-	//			colored[i] = 1;
-	//			break;
-	//		}
-	//	}
-	//	undefinenum--;
-	//}
-	//nowboard.dead_enblue = (8 - ennum) - nowboard.dead_enred;
-	//nowboard.enblue = nowboard.enemy & ~nowboard.enred;
+	while (bluenum--)
+	{
+		int r = rand[undefinenum](mt);
+		BitBoard bb = nowboard.en;
+		while (r--)
+		{
+			offBottomBB(bb);
+		}
+		bb = getBottomBB(bb);
+		nowboard.enblue |= bb;
+		nowboard.en ^= bb;
+		undefinenum--;
+	}
+	assert(undefinenum == rednum);
+	nowboard.enred = nowboard.en;
+	nowboard.en = 0;
 	assert(nowboard.en_mix == (nowboard.enblue ^ nowboard.enred ^ nowboard.en));
 
 	while (true)
 	{
-		//倒した敵駒の色決め
-		if (nowboard.dead_en > 0)
-		{
-			if (rand[8 - nowboard.dead_enblue - nowboard.dead_enred](mt) < 4 - nowboard.dead_enblue)
-			{
-				nowboard.dead_enblue++;
-			}
-			else
-			{
-				nowboard.dead_enred++;
-			}
-		}
 
 		//勝負がついているか見る
 		if (turnnum > MAXPLAY)
 			return DRAW_VALUE;
-		if (nowboard.escape)
-			return (nowPlayer == 0 ? LOSE_VALUE : WIN_VALUE);
+		if (__popcnt64(nowboard.enred) == 0 || nowboard.dead_enred >= 4)
+			return LOSE_VALUE;
 		if (nowboard.dead_myblue == 4)
 			return LOSE_VALUE;
-		if (nowboard.dead_enred == 4)
-			return LOSE_VALUE;
+		if (nowboard.escape)
+			return (nowPlayer == 0 ? LOSE_VALUE : WIN_VALUE);
 		if (nowboard.dead_myred == 4)
 			return (nowboard.myred_eval ? LOSE_VALUE : WIN_VALUE * 0.5);
-		if (nowboard.dead_enblue == 4)
+		if (__popcnt64(nowboard.enblue) == 0)
 			return WIN_VALUE;
 		assert(__popcnt64(nowboard.en_mix) >= 2);
 		assert(nowboard.en_mix == (nowboard.enblue ^ nowboard.enred ^ nowboard.en));
@@ -239,43 +203,21 @@ double UCT::playout(bool nowPlayer, int turnnum, Board nowboard)
 		if (nowPlayer == 0 && Goal(getNextPosBB(nowboard.myblue), 0))
 		{
 			ppos = getNextPosBB(MYGOAL) & nowboard.myblue;
-			//assert(__popcnt64(ppos) == 1);	//探索木の構造上、両方の手前にあることがある
 			ppos = getBottomBB(ppos);
 			npos = getNextPosBB(ppos) & MYGOAL;
 			assert(__popcnt64(npos) == 1);
 
 		}
-		else if (nowPlayer == 1 && Goal(getNextPosBB(nowboard.enblue | nowboard.en), 1))
+		else if (nowPlayer == 1 && Goal(getNextPosBB(nowboard.enblue), 1))
 		{
-			if (Goal(getNextPosBB(nowboard.enblue), 1))
-			{
-				ppos = getNextPosBB(ENGOAL) & nowboard.enblue;
-				//assert(__popcnt64(ppos) == 1);
-				ppos = getBottomBB(ppos);
-				npos = getNextPosBB(ppos) & ENGOAL;
-				assert(__popcnt64(npos) == 1);
-			}
-			else if(rand[8-nowboard.dead_en](mt) < 4-nowboard.dead_enblue)
-			{
-				ppos = getNextPosBB(ENGOAL) & nowboard.en;
-				//assert(__popcnt64(ppos) == 1);
-				ppos = getBottomBB(ppos);
-				npos = getNextPosBB(ppos) & ENGOAL;
-				nowboard.enblue |= ppos;
-				nowboard.en &= ~ppos;
-				assert(__popcnt64(npos) == 1);
-			}
-			else
-			{
-				nowboard.enred |= getNextPosBB(ENGOAL) & nowboard.en;
-				nowboard.en &= ~nowboard.enred;
-				goto normal_move;
-			}
+			ppos = getNextPosBB(ENGOAL) & nowboard.enblue;
+			ppos = getBottomBB(ppos);
+			npos = getNextPosBB(ppos) & ENGOAL;
+			assert(__popcnt64(npos) == 1);
 		}
 		//通常の動き
 		else
 		{
-			normal_move:
 			ppos = (nowPlayer == 0 ? nowboard.my_mix : nowboard.en_mix);
 			npos = Inside(getNextPosBB(ppos) & ~ppos);	//移動先候補を抽出
 			assert(ppos != 0);
@@ -294,7 +236,7 @@ double UCT::playout(bool nowPlayer, int turnnum, Board nowboard)
 			ppos = getBottomBB(ppos);
 		}
 		//決めた行動をboardに変換する
-		toNextBoard(nowboard, ppos, npos, nowPlayer);
+		toNextBoard_quick(nowboard, ppos, npos, nowPlayer);
 		
 		
 		//ターンを進める
@@ -305,23 +247,11 @@ double UCT::playout(bool nowPlayer, int turnnum, Board nowboard)
 
 void UCT::search_tree(int& turnnum, NodeNum& search_node, bool& nowPlayer)
 {
-	while (turnnum < MAXPLAY && !Nodes[search_node].nextnodes.empty())	//木の端まで見る
+	while (turnnum < MAXPLAY && !Nodes[search_node].nextnodes.empty() && !Nodes[search_node].finish)	//木の端まで見る
 	{
-		// 勝負がついていたら終わり
-		if (
-			__popcnt64(Nodes[search_node].board.en_mix) < 2 ||
-			Nodes[search_node].board.dead_enblue == 4 ||
-			Nodes[search_node].board.dead_enred == 4 ||
-			Nodes[search_node].board.dead_myblue == 4 ||
-			Nodes[search_node].board.dead_myred == 4 ||
-			Nodes[search_node].board.escape
-			)
-		{
-			break;
-		}
-
 		NodeNum choice_nodenum = -1;
-		double maxvalue = -MAX_VALUE;
+		//double maxvalue = -MAX_VALUE;
+		int maxvalue = -MAX_VALUE;
 
 		for (NodeNum nextnode : Nodes[search_node].nextnodes)
 		{
@@ -334,23 +264,41 @@ void UCT::search_tree(int& turnnum, NodeNum& search_node, bool& nowPlayer)
 				break;
 			}
 			if ((nowPlayer == 0 ?
-				chmax(maxvalue, compare(Nodes[nextnode].value.win / 2.0, Nodes[nextnode].value.play, total_play)) :
-				chmax(maxvalue, compare(Nodes[nextnode].value.play - Nodes[nextnode].value.win / 2.0, Nodes[nextnode].value.play, total_play))))
+				chmax(maxvalue, intcompare(Nodes[nextnode].value.win / 2.0, Nodes[nextnode].value.play, total_play)) :
+				chmax(maxvalue, intcompare(Nodes[nextnode].value.play - Nodes[nextnode].value.win / 2.0, Nodes[nextnode].value.play, total_play))))
 			{
 				choice_nodenum = nextnode;
 			}
 		}
 		if (choice_nodenum == -1)	//見たことある盤面しかなければプレイアウト
 		{
+			assert(Nodes[search_node].board.dead_en == 0);
 			break;
 		}
 
-		turnnum++;
 		used[choice_nodenum] = 1;
 		search_node = choice_nodenum;
-		nowPlayer = Nodes[search_node].player;
-		//nowPlayer = !nowPlayer;
+		turnnum++;
 		usenode[turnnum] = search_node;
+
+		if (Nodes[search_node].nextnodes.size() == 2)
+		{
+			NodeNum nx0 = Nodes[search_node].nextnodes[0], nx1 = Nodes[search_node].nextnodes[1];
+			if (Nodes[nx0].value.play <= Nodes[nx1].value.play)
+			{
+				search_node = nx0;
+			}
+			else
+			{
+				search_node = nx1;
+			}
+			useAS[asnum] = search_node;
+			asnum++;
+		}
+
+		nowPlayer = !nowPlayer;
+		//nowPlayer = Nodes[search_node].player;
+		
 	}//while(!empty())
 }
 
@@ -359,15 +307,15 @@ int UCT::expansion(NodeNum search_node, bool nowPlayer)
 	// 打てる手の候補を抽出する
 	Board nextboards[32];
 	int nextboards_size = 0;
-	PossibleNextBoard(nextboards, nowPlayer, Nodes[search_node].board, nextboards_size);
+	PossibleNextBoard_quick(nextboards, nowPlayer, Nodes[search_node].board, nextboards_size);
 	assert(nextboards_size > 0);
+	assert(Nodes[search_node].board.dead_en == 0);
 
 	//Nodesの拡張
 	for (int i = 0; i < nextboards_size; i++)
 	{
 		Board nextboard = nextboards[i];
-		nextboard.player = !nowPlayer;
-		assert(!(nowPlayer == 1 && nextboard.dead_en != 0));
+		//nextboard.player = !nowPlayer;
 		if (board_index[nextboard] != 0)	//ハッシュが設定済み（探索済みのノード）は繋げるだけ
 		{
 			assert(nextboard == Nodes[board_index[nextboard]].board);
@@ -378,8 +326,19 @@ int UCT::expansion(NodeNum search_node, bool nowPlayer)
 
 		Node nextnode;
 		nextnode.board = nextboard;
+		nextnode.isAS = false;
 		nextnode.nextnodes.clear();
-		nextnode.player = !nowPlayer;
+		//nextnode.player = !nowPlayer;
+
+		//勝負がついているか
+		nextnode.finish = (
+			__popcnt64(nextnode.board.en_mix) < 2 ||
+			(Red::decided && (__popcnt64(Nodes[search_node].board.enblue) == 0 || __popcnt64(Nodes[search_node].board.enred) == 0)) ||
+			nextnode.board.dead_enred == 4 ||
+			nextnode.board.dead_myblue == 4 ||
+			nextnode.board.dead_myred == 4 ||
+			nextnode.board.escape
+			);
 
 		Nodes.emplace_back(nextnode);
 		Nodes[search_node].nextnodes.push_back(nodenum);
@@ -393,103 +352,64 @@ int UCT::expansion(NodeNum search_node, bool nowPlayer)
 
 //打ってnowPlayerが変わった後
 //敵駒がゴール前にいるときに一回、相手駒を取ったときに一回使う
-//1手打ったら最大二回(ルートノードのみ)
 int UCT::expansion_afterstates(NodeNum search_node, bool nowPlayer)
 {
 	//取った駒やゴールしそうな駒があるとき、分岐して色決めする
 	BitBoard near_goal = Nodes[search_node].board.en & getNextPosBB(ENGOAL);
+	Board nextboards[2] = { Nodes[search_node].board, Nodes[search_node].board };
+	int nextboards_size = 2;
 	if (near_goal)
 	{
 		assert(__popcnt64(near_goal) == 1);
-		Board nextboards[2] = { Nodes[search_node].board, Nodes[search_node].board };
-		int nextboards_size = 2;
 
 		nextboards[0].en ^= near_goal;
 		nextboards[0].enblue ^= near_goal;
 		nextboards[1].en ^= near_goal;
 		nextboards[1].enred ^= near_goal;
-
-		//Nodesの拡張
-		for (int i = 0; i < nextboards_size; i++)
-		{
-			Board nextboard = nextboards[i];
-			if (board_index[nextboard] != 0)	//ハッシュが設定済み（探索済みのノード）は繋げるだけ
-			{
-				Nodes[search_node].nextnodes.push_back(board_index[nextboard]);
-				continue;
-			}
-			//else
-			board_index[nextboard] = nodenum;	//新たにハッシュを設定する
-
-			Node nextnode;
-			nextnode.board = nextboard;
-			nextnode.nextnodes.clear();
-			nextnode.player = nowPlayer;
-
-			Nodes.emplace_back(nextnode);
-			Nodes[search_node].nextnodes.push_back(nodenum);
-			assert(Nodes[nodenum] == nextnode);
-			nodenum++;
-		}	//for nextmoves_size
-
-		//次の手
-		//ここ変えたい（赤青の率なので）
-		return Nodes[search_node].nextnodes[0];
 	}
-	assert(Nodes[search_node].board.dead_en <= 1);
-	if ((nowPlayer == 1 && Nodes[search_node].board.dead_en == 1) || (nowPlayer == 0 && Nodes[search_node].board.dead_my == 1))
+	else if (Nodes[search_node].board.dead_en == 1)
 	{
-		Board nextboards[2] = { Nodes[search_node].board, Nodes[search_node].board };
-		int nextboards_size = 2;
-		if (nowPlayer == 1)
-		{
-			nextboards[0].dead_en = 0;
-			nextboards[0].dead_enblue++;
-			nextboards[1].dead_en = 0;
-			nextboards[1].dead_enred++;
-		}
-		else
-		{
-			nextboards[0].dead_my = 0;
-			nextboards[0].dead_myblue++;
-			nextboards[1].dead_my = 0;
-			nextboards[1].dead_myred++;
-		}
-		//Nodesの拡張
-		for (int i = 0; i < nextboards_size; i++)
-		{
-			Board nextboard = nextboards[i];
-			if (board_index[nextboard] != 0)	//ハッシュが設定済み（探索済みのノード）は繋げるだけ
-			{
-				Nodes[search_node].nextnodes.push_back(board_index[nextboard]);
-				continue;
-			}
-			//else
-			board_index[nextboard] = nodenum;	//新たにハッシュを設定する
-
-			Node nextnode;
-			nextnode.board = nextboard;
-			nextnode.nextnodes.clear();
-			nextnode.player = nowPlayer;
-
-			Nodes.emplace_back(nextnode);
-			Nodes[search_node].nextnodes.push_back(nodenum);
-			assert(Nodes[nodenum] == nextnode);
-			nodenum++;
-		}	//for nextmoves_size
-
-		//次の手
-		//ここ変えたい（赤青の率なので）
-		return Nodes[search_node].nextnodes[0];
+		nextboards[0].dead_en = 0;
+		nextboards[0].dead_enblue++;
+		nextboards[1].dead_en = 0;
+		nextboards[1].dead_enred++;
 	}
-
-	//何もなければそのまま
-	if (Nodes[search_node].board.dead_en != 0)
+	else
 	{
-		assert(Nodes[search_node].board.dead_en == 0);
+		//return search_node;
+
+		//何もなければ通常のexpansion
+		return expansion(search_node, nowPlayer);
 	}
-	assert(Nodes[search_node].board.dead_my == 0);
-	return search_node;
+
+	//Nodesの拡張
+	for (int i = 0; i < nextboards_size; i++)
+	{
+		Board nextboard = nextboards[i];
+		if (board_index[nextboard] != 0)	//ハッシュが設定済み（探索済みのノード）は繋げるだけ
+		{
+			Nodes[search_node].nextnodes.push_back(board_index[nextboard]);
+			continue;
+		}
+		//else
+		board_index[nextboard] = nodenum;	//新たにハッシュを設定する
+
+		Node nextnode;
+		nextnode.board = nextboard;
+		nextnode.isAS = true;
+		nextnode.nextnodes.clear();
+		//nextnode.player = nowPlayer;
+
+		Nodes.emplace_back(nextnode);
+		Nodes[search_node].nextnodes.push_back(nodenum);
+		assert(Nodes[nodenum] == nextnode);
+		nodenum++;
+	}	//for nextmoves_size
+
+	assert(Nodes[search_node].nextnodes.size() == 2);
+	//次の手
+	//ここ変えたい（赤青の率なので）
+	return Nodes[search_node].nextnodes[0];
 }
 
 //UCT探索をする
@@ -501,52 +421,37 @@ void UCT::Search()
 	int turnnum = playnum;
 	fill(usenode, usenode + 302, 0);
 	usenode[playnum] = playnodenum;
+	fill(useAS, useAS + 8, 0);
+	asnum = 0;
 
 	
 	//ルートの展開
-	expansion(search_node, nowPlayer);
-	
+	search_node = expansion(search_node, nowPlayer);
+
 	clock_t start_time = clock();
-	while (clock() - start_time < (THINKING_TIME - 1) * CLOCKS_PER_SEC)	// UCTのループ
+	//while (clock() - start_time < (THINKING_TIME - 1) * CLOCKS_PER_SEC)	// UCTのループ
+	while(total_play < 100000)
 	{
 		//木の端まで見る
 		search_tree(turnnum, search_node, nowPlayer);
 
 		//展開
-		if (
-			__popcnt64(Nodes[search_node].board.en_mix) < 2 ||
-			Nodes[search_node].board.dead_enblue == 4 ||
-			Nodes[search_node].board.dead_enred == 4 ||
-			Nodes[search_node].board.dead_myblue == 4 ||
-			Nodes[search_node].board.dead_myred == 4 ||
-			Nodes[search_node].board.escape
-			);
-		else
+		if (!Nodes[search_node].finish && Nodes[search_node].value.play >= 1)
 		{
-			if (Nodes[search_node].value.play >= 1)
+			search_node = expansion_afterstates(search_node, nowPlayer);
+
+			if (Nodes[search_node].isAS)
 			{
-				auto pre_node = search_node;
-				search_node = expansion_afterstates(search_node, nowPlayer);
-				if (pre_node == search_node)
-				{
-					assert(Nodes[search_node].board.dead_en == 0);
-					search_node = expansion(search_node, nowPlayer);
-					nowPlayer = !nowPlayer;
-					if (nowPlayer != Nodes[search_node].player)
-					{
-						assert(nowPlayer == Nodes[search_node].player);
-					}
-				}
-				assert(pre_node != search_node);
-				if (Nodes[search_node].player != Nodes[search_node].board.player)
-				{
-					assert(Nodes[search_node].player == Nodes[search_node].board.player);
-				}
+				useAS[asnum] = search_node;
+				asnum++;
+			}
+			else
+			{
 				//次の手
 				turnnum++;
-				//assert(!Nodes[search_node].nextnodes.empty());
 				usenode[turnnum] = search_node;
-			}
+				nowPlayer = !nowPlayer;
+			}	
 		}
 
 		//プレイアウトとバックプロパゲーション
@@ -563,12 +468,18 @@ void UCT::Search()
 				turnnum--;
 				//UpdateBoardValue(Nodes[node].value);
 			}
+			while (asnum > 0)
+			{
+				asnum--;
+				Nodes[useAS[asnum]].value.play++;
+			}
 			//探索情報をリセット
 			//usenode.resize(1, playnodenum);
 			search_node = playnodenum;
 			nowPlayer = 0;
 			turnnum = playnum;
 			used.clear();
+			asnum = 0;
 		}
 
 		
