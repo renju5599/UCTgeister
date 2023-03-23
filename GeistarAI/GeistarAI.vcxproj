@@ -145,6 +145,7 @@
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="UCT.cpp" />
     <ClCompile Include="UCTandAlphaBeta_RedDec.cpp" />
+    <ClCompile Include="UCTrootRFandABRed.cpp" />
     <ClCompile Include="UCTwithRFandABRed.cpp" />
     <ClCompile Include="UCT_Afterstates.cpp" />
     <ClCompile Include="UCT_onlyRoot.cpp" />
@@ -163,6 +164,7 @@
     <ClInclude Include="types.h" />
     <ClInclude Include="UCT.h" />
     <ClInclude Include="UCTandAlphaBeta_RedDec.h" />
+    <ClInclude Include="UCTrootRFandABRed.h" />
     <ClInclude Include="UCTwithRFandABRed.h" />
     <ClInclude Include="UCT_Afterstates.h" />
     <ClInclude Include="UCT_onlyRoot.h" />

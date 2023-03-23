@@ -5,4 +5,4 @@
 #define WIN_VALUE 2
 #define LOSE_VALUE 0
 #define DRAW_VALUE 1
-#define THINKING_TIME 2	// 1ïbó]óTéùÇΩÇπÇÈÇÊÇ§é¿ëï
+#define THINKING_TIME 9

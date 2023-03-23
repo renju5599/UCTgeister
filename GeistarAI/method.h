@@ -45,15 +45,6 @@ inline BitBoard Inside(BitBoard bb)
 {
 	return (bb & 0x007E7E7E7E7E7E00);
 }
-inline bool Goal(Point xy, bool player)
-{
-	if (player == 0 && (xy == 62 || xy == 57))
-		return true;
-	else if (player == 1 && (xy == 1 || xy == 6))
-		return true;
-	else
-		return false;
-}
 inline bool Goal(BitBoard bb, bool player)
 {
 	return bb & (player ? ENGOAL : MYGOAL);
@@ -691,6 +682,11 @@ inline void PossibleNextBoard_quick(Board nextpositions[32], bool nowPlayer, Boa
 	return;
 }
 
+inline int square(int a)
+{
+	return a * a;
+}
+
 inline int intsqrt(int a)
 {
 	if (a < 1) return 0;
@@ -732,7 +728,8 @@ inline double compare(double win, int play, int total_play)
 }
 inline double compare_RF(double win, int play, int parent_play, double NN_softmax)
 {
-	return (play == 0 ? 0.5 : win / play) + (log((1.0 + parent_play + 19652) / 19652.0) + 1.25) * NN_softmax * pow(parent_play, 0.5) / (1.0 + play);
+	//return (play == 0 ? 0.5 : win / play) + (log((1.0 + parent_play + 19652) / 19652.0) + 1.25) * NN_softmax * pow(parent_play, 0.5) / (1.0 + play);
+	return (play == 0 ? 1.0 : win / play) + NN_softmax * 2 + FACTOR * pow(log(parent_play) / play, 0.5);
 	//return (win == 0 ? 0 : win / play) + (log((1.0 + parent_play + 1965) / 1965.0) + 1.25) * NN_softmax * pow(parent_play, 0.5) / (1.0 + play);
 	//play==0‚È‚ç“–‘Rwin==0‚¾‚æ‚Ë‚Æ‚¢‚¤H•v
 	//‚Å‚àplay==0‚È‚çˆø‚«•ª‚¯‚ª—Ç‚¢‚Ì‚Å‚Í?

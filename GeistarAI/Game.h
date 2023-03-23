@@ -15,6 +15,7 @@
 #include "UCT_RedDec.h"
 #include "UCTandAlphaBeta_RedDec.h"
 #include "UCTwithRFandABRed.h"
+#include "UCTrootRFandABRed.h"
 
 using namespace std;
 
@@ -26,6 +27,9 @@ namespace Game_
 	extern PieceNum piecenum[64];
 	extern Point pieces[16];	//駒の番号と位置を関連付ける
 	extern int turn;
+	extern int ver_num;
+	extern bool purple;
+	extern Board gameboard;
 
 	bool startWith(string &s, string t);				// sの先頭とtの一致判定
 	int isEnd(string s);												// ゲームの終了判定

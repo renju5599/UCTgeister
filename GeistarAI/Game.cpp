@@ -7,6 +7,10 @@ namespace Game_
 	PieceNum piecenum[64] = {};
 	Point pieces[16] = {};
 	int turn = 0;
+	int ver_num = 0;
+	bool purple = false;
+	bool ABcheck = false;
+	Board gameboard;
 
 	//sの先頭がt ⇔ true
 	bool startWith(string& s, string t)
@@ -117,6 +121,7 @@ namespace Game_
 		UCT_RedDec::UCT TreeRedDec(StartStr);
 		UCTandAlphaBeta_RedDec::UCTandAlphaBeta TreeUCT_AB(StartStr);
 		UCTwithRFandABRed::UCTandAlphaBeta TreeUCTRF_AB(StartStr);
+		UCTrootRFandABRed::UCTandAlphaBeta TreeUCTrootRF_AB(StartStr);
 
 		Recieve recieve;
 		Send send;
@@ -127,7 +132,8 @@ namespace Game_
 
 		Red::init();
 
-		
+		ABcheck = false;
+
 		//試合
 		while (true)
 		{
@@ -144,8 +150,9 @@ namespace Game_
 
 			toPieceNum(piecenum, recieve);
 			toPieces(pieces, recieve);
+			gameboard = toBoard(recieve);
 			////赤駒推測関係
-			if (AI_kind != 5 && AI_kind != 6 && AI_kind != 7 && AI_kind != 8)
+			if (AI_kind != 5 && AI_kind != 6 && AI_kind != 7)
 			{
 				Red::setAfterEnemy(recieve);
 				Red::setEval();
@@ -251,7 +258,7 @@ namespace Game_
 			else if (AI_kind == 8)
 			{
 				TreeUCTRF_AB.SetNode(recieve);
-				if (turn < 20)
+				if (turn < ver_num)
 				{
 					printf("UCTwithRF\n");
 					TreeUCTRF_AB.Search();
@@ -268,14 +275,95 @@ namespace Game_
 					printf("Finish Search\n");
 				}
 			}
-			
+			else if (AI_kind == 9)
+			{
+				TreeUCTrootRF_AB.SetNode(recieve);
+				if (turn < ver_num)
+				{
+					printf("UCTrootRF\n");
+					TreeUCTrootRF_AB.Search();
+					printf("Finish Search\n");
+					TreeUCTrootRF_AB.PrintStatus();
+					UCTandAlphaBeta_RedDec::NodeNum move = TreeUCTrootRF_AB.Choice();  //探索結果に合わせてrootからノードを選択
+					TreeUCTrootRF_AB.changeRed_pos(move);
+					send = TreeUCTrootRF_AB.MoveNode(move);    //選択したノードに遷移し、サーバーに送る文字列を受け取る
+				}
+				else
+				{
+				AlphaBeta9:
+					printf("AlphaBeta\n");
+					send = TreeUCTrootRF_AB.Search_AB();
+					printf("Finish Search\n");
+				}
+			}
+			else if (AI_kind == 10)
+			{
+				TreeUCTrootRF_AB.SetNode(recieve);
+				if (!ABcheck && turn < ver_num)
+				{
+					printf("AlphaBeta Check...\n");
+					int check = TreeUCTrootRF_AB.Check_AB();
+					if (check > 50000)
+					{
+						ABcheck = true;
+						goto AlphaBeta10;
+					}
+					printf("Finish Check\n");
+
+					printf("UCTrootRF\n");
+					TreeUCTrootRF_AB.Search();
+					printf("Finish Search\n");
+					TreeUCTrootRF_AB.PrintStatus();
+					UCTandAlphaBeta_RedDec::NodeNum move = TreeUCTrootRF_AB.Choice();  //探索結果に合わせてrootからノードを選択
+					TreeUCTrootRF_AB.changeRed_pos(move);
+					send = TreeUCTrootRF_AB.MoveNode(move);    //選択したノードに遷移し、サーバーに送る文字列を受け取る
+				}
+				else
+				{
+				AlphaBeta10:
+					printf("AlphaBeta\n");
+					send = TreeUCTrootRF_AB.Search_AB();
+					printf("Finish Search\n");
+				}
+			}
+			else if (AI_kind == 11)
+			{
+				purple = true;
+				TreeUCTrootRF_AB.SetNode(recieve);
+				if (!ABcheck && turn < ver_num)
+				{
+					printf("AlphaBeta Check...\n");
+					int check = TreeUCTrootRF_AB.Check_AB();
+					if (check > 50000)
+					{
+						ABcheck = true;
+						goto AlphaBeta11;
+					}
+					printf("Finish Check\n");
+
+					printf("UCTrootRF\n");
+					TreeUCTrootRF_AB.Search();
+					printf("Finish Search\n");
+					TreeUCTrootRF_AB.PrintStatus();
+					UCTandAlphaBeta_RedDec::NodeNum move = TreeUCTrootRF_AB.Choice();  //探索結果に合わせてrootからノードを選択
+					TreeUCTrootRF_AB.changeRed_pos(move);
+					send = TreeUCTrootRF_AB.MoveNode(move);    //選択したノードに遷移し、サーバーに送る文字列を受け取る
+				}
+				else
+				{
+				AlphaBeta11:
+					printf("AlphaBeta\n");
+					send = TreeUCTrootRF_AB.Search_AB();
+					printf("Finish Search\n");
+				}
+			}
 
 			cout << send << endl;
 			client::Send(dstSocket, send); //サーバーに文字列を送る
 			client::Recv(dstSocket);       // ACKの受信
 
 			//赤駒推測関係
-			if (AI_kind != 5 && AI_kind != 6 && AI_kind != 7 && AI_kind != 8)
+			if (AI_kind != 5 && AI_kind != 6 && AI_kind != 7)
 			{
 				Red::setAfterMe(send);
 				Red::setEvalafterMe();

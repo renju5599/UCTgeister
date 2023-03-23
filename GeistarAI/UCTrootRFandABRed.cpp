@@ -7,13 +7,13 @@
 #include "method.h"
 #include "NN_method.h"
 #include "weight.h"
-#include "UCTwithRFandABRed.h"
+#include "UCTrootRFandABRed.h"
 #include "ColorGuess.h"
 #include "Game.h"
 
 using namespace std;
 
-using namespace UCTwithRFandABRed;
+using namespace UCTrootRFandABRed;
 
 
 //初期化
@@ -123,7 +123,17 @@ int UCTandAlphaBeta::playout(bool nowPlayer, int turnnum, Board nowboard)
 		{
 			return DRAW_VALUE;
 		}
+
+		int def = 0;
+		if (Game_::purple && nowboard.kill && nowPlayer == 1)
+		{
+			if (!(Red::decided || nowboard.dead_enred < 3))
+			{
+				def = -16384;
+			}
+		}
 		//勝負がついているか見る
+		/*
 		if (turnnum > MAXPLAY)
 			return DRAW_VALUE;
 		if (nowboard.escape)
@@ -138,7 +148,27 @@ int UCTandAlphaBeta::playout(bool nowPlayer, int turnnum, Board nowboard)
 			return WIN_VALUE;
 		assert(__popcnt64(nowboard.en_mix) >= 2);
 		assert(nowboard.en_mix == (nowboard.enblue ^ nowboard.enred));
-
+		*/
+		if (nowboard.enred == 0)
+			return 0 + def;
+		else if (nowboard.myblue == 0)
+			return 2000 + def;
+		else if (Goal(nowboard.enblue, 1))
+			return 1000 + def;
+		else if (nowboard.enblue == 0)
+		{
+			if (!Game_::purple || Red::decided || nowboard.dead_enred < 3)
+				return 65500 + def;
+			else
+				return 42768 + def;
+		}
+		else if (nowboard.myred == 0)
+			return 60000 + def;
+		else if (Goal(nowboard.myblue, 0))
+			return 65535 + def;
+		else if(turnnum > MAXPLAY)
+			return 32768 + def;
+		
 
 		//変えてみる
 		BitBoard ppos = 0, npos = 0;
@@ -196,26 +226,14 @@ void UCTandAlphaBeta::search_tree(int& turnnum, int& search_node, bool& nowPlaye
 	{
 		NodeNum choice_nodenum = -1;
 		double maxvalue = -MAX_VALUE, minvalue = MAX_VALUE;
-		double softmax_sum = 0;
-		if (nowPlayer == 0)
-		{
-			for (NodeNum nextnode : Nodes[search_node].nextnodes)
-			{
-				softmax_sum += exp((nowPlayer == 0 ? 1 : -1) * Nodes[nextnode].value.NN_score);
-				//if (nowPlayer == 0) softmax_sum += exp(Nodes[nextnode].value.NN_score);
-			}
-		}
 		for (NodeNum nextnode : Nodes[search_node].nextnodes)
 		{
 			if (used[nextnode])	//2度同じ盤面は見ない
 				continue;
 			// 自分の手番⇒大きいのを選ぶ  相手の手番⇒小さいのを選ぶ
-			// (相手の評価値はわからんので自分視点の符号逆)
-			// PUCTは相手側はランダム(回数最小)っぽい
 			if ((nowPlayer == 0 ?
-				chmax(maxvalue, compare_RF(Nodes[nextnode].value.win / 2.0, Nodes[nextnode].value.play, Nodes[search_node].value.play, exp(Nodes[nextnode].value.NN_score) / softmax_sum * 0.10)) :
-				//chmax(maxvalue, compare_RF(Nodes[nextnode].value.play - Nodes[nextnode].value.win / 2.0, Nodes[nextnode].value.play, Nodes[search_node].value.play, exp(-Nodes[nextnode].value.NN_score) / softmax_sum * 0.10))))
-				chmax(maxvalue, -(double)Nodes[nextnode].value.play)))
+				chmax(maxvalue, compare(Nodes[nextnode].value.win, Nodes[nextnode].value.play, total_play)) :
+				chmax(maxvalue, compare(Nodes[nextnode].value.play - Nodes[nextnode].value.win, Nodes[nextnode].value.play, total_play))))
 			{
 				choice_nodenum = nextnode;
 			}
@@ -232,8 +250,46 @@ void UCTandAlphaBeta::search_tree(int& turnnum, int& search_node, bool& nowPlaye
 		usenode[turnnum] = search_node;
 	}//while(!empty())
 }
+void UCTandAlphaBeta::search_RF(int& turnnum, int& search_node, bool& nowPlayer)
+{
+	NodeNum choice_nodenum = -1;
+	double maxvalue = -MAX_VALUE, minvalue = MAX_VALUE;
+	double softmax_sum = 0;
+	if (nowPlayer == 0)
+	{
+		for (NodeNum nextnode : Nodes[search_node].nextnodes)
+		{
+			softmax_sum += exp((nowPlayer == 0 ? 1 : -1) * Nodes[nextnode].value.NN_score);
+			//if (nowPlayer == 0) softmax_sum += exp(Nodes[nextnode].value.NN_score);
+		}
+	}
+	for (NodeNum nextnode : Nodes[search_node].nextnodes)
+	{
+		if (used[nextnode])	//2度同じ盤面は見ない
+			continue;
+		// 自分の手番⇒大きいのを選ぶ  相手の手番⇒小さいのを選ぶ
+		// (相手の評価値はわからんので自分視点の符号逆)
+		// PUCTは相手側はランダム(回数最小)っぽい
+		if ((nowPlayer == 0 ?
+			chmax(maxvalue, compare_RF(Nodes[nextnode].value.win, Nodes[nextnode].value.play, Nodes[search_node].value.play, exp(Nodes[nextnode].value.NN_score) / softmax_sum * 0.10)) :
+			chmax(maxvalue, -(double)Nodes[nextnode].value.play)))
+		{
+			choice_nodenum = nextnode;
+		}
+	}
+	if (choice_nodenum == -1)	//見たことある盤面しかなければプレイアウト
+	{
+		return;
+	}
 
-int UCTandAlphaBeta::expansion(int search_node, bool nowPlayer)
+	turnnum++;
+	used[choice_nodenum] = 1;
+	search_node = choice_nodenum;
+	nowPlayer = !nowPlayer;
+	usenode[turnnum] = search_node;
+}
+
+int UCTandAlphaBeta::expansion(int search_node, bool nowPlayer, bool useRF)
 {
 	// 打てる手の候補を抽出する
 	Board nextboards[32];
@@ -281,7 +337,7 @@ int UCTandAlphaBeta::expansion(int search_node, bool nowPlayer)
 			nextnode.board.escape
 			);
 
-		if (nowPlayer == 0)
+		if (nowPlayer == 0 && useRF)
 		{
 			//方策勾配法のモデルを通した値を保存
 			toBitsStatus(bsta, nextboard);
@@ -315,12 +371,13 @@ void UCTandAlphaBeta::Search()
 
 
 	//ルートの展開
-	expansion(search_node, nowPlayer);
+	expansion(search_node, nowPlayer, true);
 
 	start_time = clock();
 	while (clock() - start_time < (THINKING_TIME - 1) * CLOCKS_PER_SEC)	// UCTのループ
 	{
 		//木の端まで見る
+		search_RF(turnnum, search_node, nowPlayer);
 		search_tree(turnnum, search_node, nowPlayer);
 		if (clock() - start_time > (THINKING_TIME - 1) * CLOCKS_PER_SEC)
 		{
@@ -330,7 +387,7 @@ void UCTandAlphaBeta::Search()
 		//展開
 		if (!Nodes[search_node].finish && Nodes[search_node].value.play >= 1)
 		{
-			search_node = expansion(search_node, nowPlayer);
+			search_node = expansion(search_node, nowPlayer, false);
 			//次の手
 			turnnum++;
 			nowPlayer = !nowPlayer;
@@ -340,8 +397,8 @@ void UCTandAlphaBeta::Search()
 		//プレイアウトとバックプロパゲーション
 		{
 			//double reward = playout(nowPlayer, turnnum, Nodes[search_node].board);
-			int reward = 0;
-			reward = playout(nowPlayer, turnnum, Nodes[search_node].board);
+			double reward = 0;
+			reward = playout(nowPlayer, turnnum, Nodes[search_node].board) / 65536.0;
 
 			//backpropagation();
 			total_play++;
@@ -423,7 +480,7 @@ NodeNum UCTandAlphaBeta::Choice()
 		// NN : 10%
 		if (Nodes[nextnode].value.play == 0) continue;
 		if (chmax(maxvalue, (double)Nodes[nextnode].value.win / Nodes[nextnode].value.play + exp(Nodes[nextnode].value.NN_score) / softmax * 0.1))
-		//if (chmax(maxvalue, (double)Nodes[nextnode].value.win / Nodes[nextnode].value.play))
+			//if (chmax(maxvalue, (double)Nodes[nextnode].value.win / Nodes[nextnode].value.play))
 		{
 			choice_nodenum = nextnode;
 		}
@@ -436,7 +493,7 @@ NodeNum UCTandAlphaBeta::Choice()
 		if (nextnode == choice_nodenum)
 			printf("***");
 		printf("\t");
-		printf("Value:%8d", Nodes[nextnode].value.win);
+		printf("Value:%8f", Nodes[nextnode].value.win);
 		printf("\tPlay:%8d", Nodes[nextnode].value.play);
 		printf("\tComp:%.6f", (Nodes[nextnode].value.play == 0 ? 0 : (double)Nodes[nextnode].value.win / Nodes[nextnode].value.play + exp(Nodes[nextnode].value.NN_score) / softmax * 0.1));
 		printf("\tNNScore:%.6f", exp(Nodes[nextnode].value.NN_score) / softmax);
@@ -472,7 +529,9 @@ void UCTandAlphaBeta::PrintStatus()
 int UCTandAlphaBeta::evaluate(Board& board, int depth)
 {
 	int res = 0;
-	if (board.enred == 0)
+	if (Goal(board.myblue, 0))
+		return 65535 + depth - MAXPLAY;
+	else if (board.enred == 0)
 		res = 0 - depth + MAXPLAY;
 	else if (board.myblue == 0)
 		res = 2000 - depth + MAXPLAY;
@@ -480,24 +539,21 @@ int UCTandAlphaBeta::evaluate(Board& board, int depth)
 		res = 1000 - depth + MAXPLAY;
 	else if (board.enblue == 0)
 	{
-		if(Red::decided || board.dead_enred < 3)
+		if (!Game_::purple || Red::decided || board.dead_enred < 3)
 			return 65500 + depth - MAXPLAY;
 		else
 			res = 42768 + depth - MAXPLAY;
 	}
 	else if (board.myred == 0)
 		res = 60000 + depth - MAXPLAY;
-	else if (Goal(board.myblue, 0))
-		return 65535 + depth - MAXPLAY;
 	else
 		res = 32768 - depth + MAXPLAY + 1;
-	res -= board.dead_myblue * 400;
 	//res += board.dead_myred * 40;
-	//if (board.dead_enred < 3 || Red::decided)
-	//	res += board.dead_enblue * 400;
-	//else
-	//	res -= board.dead_enblue * 50;
-	res += board.dead_enblue * 400;
+	if (!Game_::purple || board.dead_enred < 3 || Red::decided)
+		res += board.dead_enblue * 400;
+	else
+		res -= board.dead_enblue * 1000;
+	//res += board.dead_enblue * 400;
 
 	BitBoard mix = board.my_mix;
 	int mydist = (board.dead_myblue + board.dead_myred) * 12, endist = (board.dead_enblue + board.dead_enred) * 12;
@@ -527,9 +583,19 @@ int UCTandAlphaBeta::alpha_beta(Board& search_board, bool nowPlayer, int depth, 
 	{
 		return evaluate(search_board, depth);
 	}
+	if (search_board.enred == 0)
+	{
+		if (4 - Game_::gameboard.dead_enred > (search_board.dead_enblue - Game_::gameboard.dead_enblue) + 1)
+		{
+			//探索を続行
+		}
+		else
+		{
+			return evaluate(search_board, depth);
+		}
+	}
 	if (
 		search_board.enblue == 0 ||
-		search_board.enred == 0 ||
 		search_board.dead_myblue == 4 ||
 		search_board.dead_myred == 4 ||
 		search_board.escape
@@ -653,11 +719,10 @@ Send UCTandAlphaBeta::Search_AB()
 		if (playnum + depth > MAXPLAY)
 			break;
 
-		int ma = -65535;
 		nodesize = 0;
 		maxdepth = depth;
 
-		int score = alpha_beta(playboard, 0, depth, 0, 65535);
+		int score = alpha_beta(playboard, 0, depth, -65535, 65535);
 
 		cout << "node size:" << nodesize << endl;
 		if (clock() - start_time < (THINKING_TIME - 1) * CLOCKS_PER_SEC)
@@ -680,6 +745,40 @@ Send UCTandAlphaBeta::Search_AB()
 	return send;
 
 }	// Search()
+
+int UCTandAlphaBeta::Check_AB()
+{
+	//事前にSetNode(str)をしておく
+
+	int res = -65535;
+	int depth = 1;
+	start_time = clock();
+	start_time -= (THINKING_TIME - 1) * CLOCKS_PER_SEC * 9 / 10;
+
+	while (clock() - start_time < (THINKING_TIME - 1) * CLOCKS_PER_SEC)
+	{
+		cout << "depth:" << depth << endl;
+		if (playnum + depth > MAXPLAY)
+			break;
+
+		nodesize = 0;
+		maxdepth = depth;
+
+		int score = alpha_beta(playboard, 0, depth, -65535, 65535);
+
+		cout << "node size:" << nodesize << endl;
+		if (clock() - start_time < (THINKING_TIME - 1) * CLOCKS_PER_SEC)
+		{
+			assert(InsideOrGoal(resn, 0));
+			res = score;
+			cout << "score:" << score << endl;
+		}
+
+		depth++;
+	}	// while(true)	UCTのループ
+
+	return res;
+}
 
 MoveCommand UCTandAlphaBeta::toMoveCommand_AB(BitBoard ppos, BitBoard npos)
 {
